@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Tiba Salud · Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  /* Tokens de marca (tomados de tibasalud.com). Cambiar de marca = cambiar solo este bloque. */
+  :root{
+    --carbon:#1D1E22; --marino:#052534; --acero:#89ACBA; --celeste:#AEE0FC; --naranja:#FA8741;
+    --blanco:#FFFFFF; --fondo:#F4F8FA; --texto:#3B3C3F; --texto-suave:#717274; --borde:#E3EAEE; --texto-claro:#F2F2F2;
+    /* Semánticos: nunca se sustituyen por los de marca */
+    --sube:#1E8E5A; --baja:#C8432F; --aviso:#B7791F;
+    /* Series de gráficas */
+    --c-ventas:var(--marino); --c-inversion:var(--naranja); --c-meta:var(--marino); --c-google:var(--acero);
+    --c-donut-1:var(--marino); --c-donut-2:var(--acero); --c-donut-3:var(--naranja); --c-donut-otros:#D5DEE3;
+    --font:'Montserrat','Helvetica Neue',Arial,sans-serif; --radio:10px;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font-family:var(--font); color:var(--texto); background:var(--fondo); font-size:15px; line-height:1.5; }
+  :focus-visible{ outline:2px solid var(--naranja); outline-offset:2px; }
+  [hidden]{ display:none !important; }
+
+  header{ background:var(--carbon); color:var(--texto-claro); }
+  .header-inner{ max-width:1320px; margin:0 auto; padding:1rem 1.5rem .25rem; display:flex; align-items:center; gap:1.5rem; flex-wrap:wrap; }
+  .logo{ height:44px; width:auto; display:block; }
+  .logo-fallback{ font-weight:700; font-size:1.5rem; letter-spacing:.02em; }
+  .header-spacer{ flex:1; }
+  .status{ display:flex; gap:.5rem; flex-wrap:wrap; }
+  .pill{ font-size:.75rem; font-weight:600; padding:.3rem .7rem; border-radius:999px; border:1px solid rgba(255,255,255,.25); white-space:nowrap; cursor:default; }
+  .pill.ok{ border-color:rgba(30,142,90,.7); } .pill.err{ border-color:rgba(250,135,65,.9); } .pill.load{ opacity:.6; }
+
+  .tabs{ max-width:1320px; margin:0 auto; padding:0 1.5rem; display:flex; gap:.25rem; overflow-x:auto; }
+  .tabs button{ font:inherit; font-size:.9rem; font-weight:500; color:var(--texto-claro); background:none; border:0; border-bottom:3px solid transparent; padding:.85rem .9rem .7rem; cursor:pointer; opacity:.75; white-space:nowrap; }
+  .tabs button[aria-selected="true"]{ opacity:1; border-bottom-color:var(--celeste); font-weight:600; }
+
+  .controls{ max-width:1320px; margin:0 auto; padding:1.25rem 1.5rem 0; display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+  .controls button{ font:inherit; font-size:.85rem; font-weight:500; background:var(--blanco); color:var(--marino); border:1px solid var(--borde); border-radius:999px; padding:.45rem .95rem; cursor:pointer; }
+  .controls button[aria-pressed="true"]{ background:var(--marino); color:var(--blanco); border-color:var(--marino); }
+  .custom{ display:none; gap:.4rem; align-items:center; font-size:.85rem; } .custom.on{ display:flex; }
+  .custom input{ font:inherit; font-size:.85rem; padding:.35rem .5rem; border:1px solid var(--borde); border-radius:6px; color:var(--marino); }
+  .range-label{ margin-left:auto; font-size:.82rem; color:var(--texto-suave); text-align:right; }
+
+  main{ max-width:1320px; margin:0 auto; padding:1.25rem 1.5rem 3rem; }
+  .card{ background:var(--blanco); border:1px solid var(--borde); border-top:3px solid var(--celeste); border-radius:var(--radio); padding:1.25rem 1.4rem; min-width:0; }
+  .stack > * + *{ margin-top:1.25rem; }
+
+  .kpis{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1rem; }
+  .kpis.k7{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+  .kpi .label{ font-size:.82rem; font-weight:500; color:var(--texto-suave); }
+  .kpi .value{ font-size:1.6rem; font-weight:700; color:var(--marino); margin:.2rem 0 .15rem; font-variant-numeric:tabular-nums; }
+  .kpi .delta{ font-size:.8rem; font-weight:600; }
+  .delta.up{ color:var(--sube); } .delta.down{ color:var(--baja); } .delta.flat{ color:var(--texto-suave); }
+  .kpi .split{ font-size:.76rem; color:var(--texto-suave); margin-top:.35rem; }
+  .kpi.hero{ border-top-color:var(--naranja); } .kpi.hero .value{ color:var(--naranja); }
+
+  h2{ font-size:1.05rem; font-weight:700; color:var(--marino); margin:0 0 .25rem; }
+  .sub{ font-size:.82rem; color:var(--texto-suave); margin:0 0 1rem; }
+  .grid-2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:1rem; }
+  .grid-21{ display:grid; grid-template-columns:minmax(0,2fr) minmax(0,1fr); gap:1rem; }
+  .chart-box{ position:relative; height:330px; }
+  .donut-box{ position:relative; height:220px; max-width:260px; margin:0 auto .75rem; }
+
+  .table-wrap{ overflow-x:auto; }
+  table{ width:100%; border-collapse:collapse; font-size:.85rem; font-variant-numeric:tabular-nums; }
+  th{ text-align:right; font-weight:600; color:var(--texto-suave); font-size:.78rem; padding:.55rem .6rem; border-bottom:1px solid var(--borde); white-space:nowrap; }
+  th.sortable{ cursor:pointer; user-select:none; }
+  th:first-child, td:first-child{ text-align:left; }
+  th[aria-sort="descending"]::after{ content:" ↓"; } th[aria-sort="ascending"]::after{ content:" ↑"; }
+  td{ text-align:right; padding:.55rem .6rem; border-bottom:1px solid var(--fondo); white-space:nowrap; }
+  td:first-child{ white-space:normal; min-width:200px; color:var(--marino); font-weight:500; }
+  td.txt{ text-align:left; }
+  tr.total td{ font-weight:700; color:var(--marino); border-top:2px solid var(--borde); }
+  .chip{ display:inline-block; font-size:.72rem; font-weight:600; padding:.1rem .5rem; border-radius:4px; background:var(--fondo); color:var(--marino); border:1px solid var(--borde); }
+  .chip.rtg{ background:var(--marino); color:var(--blanco); border-color:var(--marino); }
+  .bar-cell{ display:flex; align-items:center; gap:.5rem; justify-content:flex-end; }
+  .bar-cell i{ display:block; height:6px; border-radius:3px; background:var(--acero); }
+
+  .table-tools{ display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin-bottom:.75rem; }
+  .table-tools select, .table-tools input{ font:inherit; font-size:.85rem; padding:.4rem .55rem; border:1px solid var(--borde); border-radius:6px; color:var(--marino); background:var(--blanco); }
+  .table-tools input{ min-width:220px; }
+  .pager{ display:flex; gap:.4rem; align-items:center; justify-content:flex-end; margin-top:.75rem; font-size:.82rem; color:var(--texto-suave); }
+  .pager button{ font:inherit; font-size:.82rem; border:1px solid var(--borde); background:var(--blanco); color:var(--marino); border-radius:6px; padding:.3rem .65rem; cursor:pointer; }
+  .pager button:disabled{ opacity:.4; cursor:default; }
+
+  /* Embudo */
+  .funnel{ display:flex; flex-direction:column; gap:.6rem; }
+  .step{ display:grid; grid-template-columns:140px minmax(0,1fr) 150px; gap:.75rem; align-items:center; font-size:.85rem; }
+  .step .name{ color:var(--marino); font-weight:600; }
+  .step .track{ background:var(--fondo); border-radius:6px; height:30px; overflow:hidden; }
+  .step .fill{ height:100%; background:var(--marino); border-radius:6px; min-width:3px; }
+  .step:nth-child(2) .fill{ background:#1F4456; } .step:nth-child(3) .fill{ background:#4F7889; }
+  .step:nth-child(4) .fill{ background:var(--acero); } .step:nth-child(5) .fill{ background:var(--naranja); }
+  .step .rate{ text-align:right; color:var(--texto-suave); font-size:.78rem; line-height:1.3; }
+  .step .rate b{ display:block; color:var(--marino); font-size:.9rem; font-variant-numeric:tabular-nums; }
+
+  .seg{ display:inline-flex; border:1px solid var(--borde); border-radius:999px; overflow:hidden; }
+  .seg button{ font:inherit; font-size:.82rem; border:0; background:var(--blanco); color:var(--marino); padding:.4rem .85rem; cursor:pointer; }
+  .seg button[aria-pressed="true"]{ background:var(--marino); color:var(--blanco); }
+
+  .note{ font-size:.8rem; color:var(--texto-suave); margin-top:.75rem; }
+  .notice{ background:#FFF6EF; border:1px solid #F7D2B8; color:#7A3C12; border-radius:8px; padding:.75rem 1rem; font-size:.85rem; }
+
+  footer{ background:var(--carbon); color:var(--texto-claro); font-size:.78rem; }
+  footer div{ max-width:1320px; margin:0 auto; padding:1rem 1.5rem; opacity:.75; }
+
+  @media (max-width:1100px){ .kpis, .kpis.k7{ grid-template-columns:repeat(3,minmax(0,1fr)); } .grid-21, .grid-2{ grid-template-columns:minmax(0,1fr); } }
+  @media (max-width:640px){
+    .kpis, .kpis.k7{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .range-label{ margin-left:0; width:100%; text-align:left; }
+    .chart-box{ height:270px; }
+    .step{ grid-template-columns:100px minmax(0,1fr); } .step .rate{ grid-column:2; text-align:left; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <img class="logo" src="https://tibasalud.com/cdn/shop/files/logo-tiba-salud-blanco.png?v=1717632414" alt="Tiba Salud"
+         onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-fallback',textContent:'tiba salud'}))">
+    <span class="header-spacer"></span>
+    <div class="status" id="status" aria-live="polite"><span class="pill load">Cargando…</span></div>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Secciones">
+    <button role="tab" data-tab="resumen" aria-selected="true">Resumen</button>
+    <button role="tab" data-tab="meta" aria-selected="false">Meta Ads</button>
+    <button role="tab" data-tab="audiencias" aria-selected="false">Audiencias</button>
+    <button role="tab" data-tab="productos" aria-selected="false">Productos y tienda</button>
+  </nav>
+</header>
+
+<div class="controls" role="group" aria-label="Rango de fechas">
+  <button data-range="today">Hoy</button>
+  <button data-range="yesterday">Ayer</button>
+  <button data-range="7d">Últimos 7 días</button>
+  <button data-range="30d" aria-pressed="true">Últimos 30 días</button>
+  <button data-range="mtd">Este mes</button>
+  <button data-range="lastmonth">Mes anterior</button>
+  <button data-range="custom">Personalizado</button>
+  <span class="custom" id="custom">
+    <input type="date" id="customStart" aria-label="Desde"><span>a</span><input type="date" id="customEnd" aria-label="Hasta">
+  </span>
+  <span class="range-label" id="rangeLabel"></span>
+</div>
+
+<main>
+  <!-- ===================== RESUMEN ===================== -->
+  <section class="stack" data-panel="resumen" role="tabpanel">
+    <div class="notice" id="resumenNotice" hidden></div>
+    <div class="kpis k7" id="kpisResumen"></div>
+    <div class="card">
+      <h2>Ventas netas e inversión</h2>
+      <p class="sub">Ventas netas diarias de Shopify (sin IVA ni envío, eje izquierdo) e inversión total de todos los canales conectados (eje derecho).</p>
+      <div class="chart-box"><canvas id="chartResumen" aria-label="Ventas netas diarias e inversión"></canvas></div>
+    </div>
+  </section>
+
+  <!-- ===================== META ADS ===================== -->
+  <section class="stack" data-panel="meta" role="tabpanel" hidden>
+    <div class="notice" id="metaNotice" hidden></div>
+    <div class="kpis k7" id="kpisMeta"></div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Embudo</h2>
+        <p class="sub">Porcentaje de paso respecto a la etapa anterior.</p>
+        <div class="funnel" id="funnel"></div>
+      </div>
+      <div class="card">
+        <h2>Por objetivo de campaña</h2>
+        <p class="sub">Clasificado por el objetivo configurado en Meta.</p>
+        <div class="table-wrap"><table id="tblObjetivos"></table></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Campañas</h2>
+      <p class="sub">Haz clic en una columna para ordenar.</p>
+      <div class="table-tools">
+        <select id="fObjetivo" aria-label="Objetivo"><option value="">Todos los objetivos</option></select>
+        <select id="fEtiqueta" aria-label="Etiqueta"><option value="">Todas las etiquetas</option></select>
+        <input type="search" id="fCampana" placeholder="Buscar campaña" aria-label="Buscar campaña">
+      </div>
+      <div class="table-wrap"><table id="tblCampanas"></table></div>
+      <div class="pager" id="pgCampanas"></div>
+      <p class="note">Compras y valor de compra son los que reporta Meta con su atribución. El ROAS de esta pestaña es el de la plataforma; el ROAS blended del Resumen usa ventas netas reales de Shopify.</p>
+    </div>
+  </section>
+
+  <!-- ===================== AUDIENCIAS ===================== -->
+  <section class="stack" data-panel="audiencias" role="tabpanel" hidden>
+    <div class="notice" id="audNotice" hidden></div>
+    <div class="card" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;justify-content:space-between">
+      <div><h2>Audiencias de Meta</h2><p class="sub" style="margin:0">Reparto del periodo seleccionado. Las gráficas y el % del total siguen la métrica elegida; las gráficas muestran las 3 principales y agrupan el resto en "Otros".</p></div>
+      <div class="seg" role="group" aria-label="Métrica" id="audMetric">
+        <button data-m="spend" aria-pressed="true">Inversión</button>
+        <button data-m="impressions" aria-pressed="false">Impresiones</button>
+        <button data-m="purchases" aria-pressed="false">Compras</button>
+      </div>
+    </div>
+    <div class="grid-2" id="audGrid"></div>
+  </section>
+
+  <!-- ===================== PRODUCTOS ===================== -->
+  <section class="stack" data-panel="productos" role="tabpanel" hidden>
+    <div class="notice" id="prodNotice" hidden></div>
+    <div class="kpis" id="kpisProductos"></div>
+    <div class="card">
+      <h2>Top productos</h2>
+      <p class="sub">Ventas netas sin IVA por producto, con unidades vigentes después de devoluciones.</p>
+      <div class="table-tools"><input type="search" id="fProducto" placeholder="Buscar producto" aria-label="Buscar producto"></div>
+      <div class="table-wrap"><table id="tblProductos"></table></div>
+      <div class="pager" id="pgProductos"></div>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <h2>Ventas por categoría</h2>
+        <p class="sub">Según el tipo de producto en Shopify.</p>
+        <div class="table-wrap"><table id="tblCategorias"></table></div>
+        <div class="pager" id="pgCategorias"></div>
+      </div>
+      <div class="card">
+        <h2>Ventas por marca</h2>
+        <p class="sub">Según el proveedor en Shopify.</p>
+        <div class="table-wrap"><table id="tblMarcas"></table></div>
+        <div class="pager" id="pgMarcas"></div>
+      </div>
+    </div>
+    <p class="note">Las ventas por producto reparten los descuentos del pedido entre sus productos. La suma puede diferir unos pesos de las ventas netas del Resumen por redondeo.</p>
+  </section>
+</main>
+
+<footer><div id="footerInfo">Tiba Salud</div></footer>
+
+<script>
+/* ==========================================================================
+   CONFIGURACIÓN EDITABLE
+   ========================================================================== */
+
+// Etiquetas manuales por ID de campaña de Meta. Tienen prioridad sobre la regla por nombre.
+const CAMPAIGN_OVERRIDES = {
+  // "120210000000000000": "Retargeting",
+};
+
+// Regla secundaria: si el nombre contiene esto (sin importar mayúsculas), se etiqueta como Retargeting.
+const RETARGETING_PATTERN = /rtg|retargeting/i;
+const DEFAULT_LABEL = 'Sin etiqueta';
+
+const OBJECTIVES = {
+  OUTCOME_SALES: 'Ventas',
+  OUTCOME_TRAFFIC: 'Tráfico',
+  OUTCOME_AWARENESS: 'Awareness',
+  OUTCOME_ENGAGEMENT: 'Interacción',
+  OUTCOME_LEADS: 'Leads',
+};
+
+const PAGE_SIZE = 15;
+const DEMO = new URLSearchParams(location.search).has('demo');   // ?demo=1 → datos de ejemplo
+
+/* ==========================================================================
+   Utilidades
+   ========================================================================== */
+let TZ = 'America/Mexico_City';   // se reemplaza por shop.ianaTimezone al cargar
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmtMoney = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:0 });
+const fmtMoney2 = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', minimumFractionDigits:2, maximumFractionDigits:2 });
+const fmtInt = new Intl.NumberFormat('es-MX', { maximumFractionDigits:0 });
+const fmtDec = new Intl.NumberFormat('es-MX', { minimumFractionDigits:2, maximumFractionDigits:2 });
+const pct = v => v == null || !isFinite(v) ? '—' : `${fmtDec.format(v * 100)}%`;
+const money = v => v == null || !isFinite(v) ? '—' : fmtMoney.format(v);
+const money2 = v => v == null || !isFinite(v) ? '—' : fmtMoney2.format(v);
+const int = v => v == null || !isFinite(v) ? '—' : fmtInt.format(v);
+const xRoas = v => v == null || !isFinite(v) ? '—' : `${fmtDec.format(v)}x`;
+const div = (a, b) => b ? a / b : null;
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c])); }
+
+/* Fechas: siempre strings 'YYYY-MM-DD'. El valor de <input type="date"> se usa
+   como string y, si hace falta un Date, se arma con new Date(y, m-1, d) (local). */
+function todayStr(){ return new Intl.DateTimeFormat('en-CA', { timeZone:TZ }).format(new Date()); }
+function parseLocalDate(s){ const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); }
+function toStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function addDays(s, n){ const d = parseLocalDate(s); d.setDate(d.getDate()+n); return toStr(d); }
+function daysBetween(a, b){ return Math.round((parseLocalDate(b) - parseLocalDate(a)) / 86400000) + 1; }
+function niceDate(s){ const d = parseLocalDate(s); return `${d.getDate()} ${MESES[d.getMonth()]} ${d.getFullYear()}`; }
+
+function resolveRange(key){
+  const t = todayStr(); const [y, m] = t.split('-').map(Number);
+  switch(key){
+    case 'today': return { start:t, end:t };
+    case 'yesterday': { const d = addDays(t,-1); return { start:d, end:d }; }
+    case '7d': return { start:addDays(t,-6), end:t };
+    case '30d': return { start:addDays(t,-29), end:t };
+    case 'mtd': return { start:`${t.slice(0,7)}-01`, end:t };
+    case 'lastmonth': return { start:toStr(new Date(y, m-2, 1)), end:toStr(new Date(y, m-1, 0)) };
+    case 'custom': {
+      const s = document.getElementById('customStart').value, e = document.getElementById('customEnd').value;
+      return s && e && s <= e ? { start:s, end:e } : null;
+    }
+  }
+}
+function previousRange(r){ const n = daysBetween(r.start, r.end); return { start:addDays(r.start,-n), end:addDays(r.start,-1) }; }
+const inRange = (rows, r) => rows.filter(x => x.date >= r.start && x.date <= r.end);
+function deltaPct(c, p){ if(c == null || p == null || !p) return null; return (c - p) / p * 100; }
+
+/* ==========================================================================
+   Tabla compartida: orden por columna, filtro y paginación (todas las tablas)
+   columns: [{ key, label, f?, align?, sortable? }]
+   ========================================================================== */
+function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pageSize = PAGE_SIZE, totalRow, emptyText = 'Sin datos para este periodo.', noun = 'filas' }){
+  const st = { rows:[], filter:() => true, sortKey, sortDir, page:1 };
+  const table = document.getElementById(tableId);
+  const pager = pagerId ? document.getElementById(pagerId) : null;
+
+  function render(){
+    let list = st.rows.filter(st.filter);
+    const col = columns.find(c => c.key === st.sortKey);
+    if(col){
+      list = [...list].sort((a, b) => {
+        const va = a[st.sortKey], vb = b[st.sortKey];
+        if(typeof va === 'string' || typeof vb === 'string') return st.sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+        const na = va == null ? -Infinity : va, nb = vb == null ? -Infinity : vb;
+        return st.sortDir === 'asc' ? na - nb : nb - na;
+      });
+    }
+    const pages = Math.max(1, Math.ceil(list.length / pageSize));
+    st.page = Math.min(Math.max(1, st.page), pages);
+    const items = list.slice((st.page - 1) * pageSize, st.page * pageSize);
+
+    const head = `<thead><tr>${columns.map(c => `<th class="${c.sortable === false ? '' : 'sortable'}" data-key="${c.key}" ${c.key === st.sortKey ? `aria-sort="${st.sortDir === 'asc' ? 'ascending' : 'descending'}"` : ''} style="${c.align === 'left' ? 'text-align:left' : ''}">${c.label}</th>`).join('')}</tr></thead>`;
+    const cell = (c, r) => `<td class="${c.align === 'left' ? 'txt' : ''}">${c.f ? c.f(r[c.key], r) : escapeHtml(r[c.key])}</td>`;
+    const body = items.length ? items.map(r => `<tr>${columns.map(c => cell(c, r)).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}">${emptyText}</td></tr>`;
+    const tot = totalRow && list.length ? totalRow(list) : null;
+    const foot = tot ? `<tr class="total">${columns.map((c, i) => i === 0 ? '<td>Total</td>' : `<td class="${c.align === 'left' ? 'txt' : ''}">${tot[c.key] === undefined ? '' : (c.f ? c.f(tot[c.key], tot) : escapeHtml(tot[c.key]))}</td>`).join('')}</tr>` : '';
+    table.innerHTML = head + `<tbody>${body}${foot}</tbody>`;
+    table.querySelectorAll('th.sortable').forEach(th => th.onclick = () => {
+      const k = th.dataset.key;
+      if(st.sortKey === k) st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
+      else { st.sortKey = k; st.sortDir = typeof st.rows[0]?.[k] === 'string' ? 'asc' : 'desc'; }
+      st.page = 1; render();
+    });
+    if(pager){
+      if(pages <= 1){ pager.innerHTML = list.length ? `${list.length} ${noun}` : ''; }
+      else {
+        pager.innerHTML = `<span>${list.length} ${noun} · página ${st.page} de ${pages}</span>
+          <button ${st.page === 1 ? 'disabled' : ''} data-go="-1">Anterior</button>
+          <button ${st.page === pages ? 'disabled' : ''} data-go="1">Siguiente</button>`;
+        pager.querySelectorAll('button').forEach(b => b.onclick = () => { st.page += +b.dataset.go; render(); });
+      }
+    }
+  }
+  return {
+    setRows(rows){ st.rows = rows; st.page = 1; render(); },
+    setFilter(fn){ st.filter = fn; st.page = 1; render(); },
+  };
+}
+
+/* ==========================================================================
+   Carga de datos. Cada fuente falla de forma independiente.
+   ========================================================================== */
+window.DATA = { shopify:null, meta:null, google:null, audiences:null, errors:{} };
+window.RAW_ORDERS = []; window.RAW_META_ROWS = []; window.RAW_GOOGLE_ROWS = []; window.RAW_AUDIENCES = [];
+
+async function getJSON(url){
+  const res = await fetch(url);
+  let json; try { json = await res.json(); } catch { throw new Error(`Respuesta no válida (HTTP ${res.status})`); }
+  if(!res.ok) throw new Error(json.detail || json.error || `HTTP ${res.status}`);
+  return json;
+}
+
+async function loadShopInfo(){
+  if(DEMO) return;
+  try {
+    const { shop } = await getJSON('/api/shopify?info=1');
+    if(shop?.timezone) TZ = shop.timezone;
+    window.DATA.shopInfo = shop;
+  } catch(e){ /* si falla, se queda la zona por defecto y el error se verá al cargar Shopify */ }
+}
+
+async function loadAll(range){
+  const prev = previousRange(range);
+  const since = prev.start, until = range.end;   // una consulta cubre periodo actual + anterior
+  if(DEMO) return demoData(since, until, range);
+
+  const q = `since=${since}&until=${until}`;
+  const jobs = {
+    shopify: getJSON(`/api/shopify?${q}`),
+    meta: getJSON(`/api/meta-ads?${q}`),
+    google: getJSON(`/api/google-ads?${q}`),
+    audiences: getJSON(`/api/meta-ads?view=audiences&since=${range.start}&until=${range.end}`),
+  };
+  const keys = Object.keys(jobs);
+  const settled = await Promise.allSettled(Object.values(jobs));
+  const out = { status:{}, errors:{} };
+  settled.forEach((r, i) => {
+    const k = keys[i];
+    if(r.status === 'fulfilled'){ out[k] = r.value; out.status[k] = 'ok'; }
+    else { out[k] = null; out.status[k] = 'err'; out.errors[k] = r.reason?.message || String(r.reason); }
+  });
+  return out;
+}
+
+/* ==========================================================================
+   Modelo: normalización y agregados
+   ========================================================================== */
+function objectiveLabel(raw){ return OBJECTIVES[raw] || `Otro (${raw || 'sin objetivo'})`; }
+function campaignLabel(id, name){
+  if(CAMPAIGN_OVERRIDES[id]) return CAMPAIGN_OVERRIDES[id];
+  if(RETARGETING_PATTERN.test(name || '')) return 'Retargeting';
+  return DEFAULT_LABEL;
+}
+
+function normMeta(rows){
+  return rows.map(r => ({
+    date:r.date, campaign_id:String(r.campaign_id), campaign:r.campaign || '(sin nombre)',
+    objective_raw:r.objective, objective:objectiveLabel(r.objective), label:campaignLabel(String(r.campaign_id), r.campaign),
+    spend:+r.spend||0, impressions:+r.impressions||0, clicks:+r.link_clicks||0,
+    add_to_cart:+r.add_to_cart||0, checkouts:+r.checkouts||0, purchases:+r.purchases||0, value:+r.purchase_value||0,
+  }));
+}
+function normGoogle(rows){ return rows.map(r => ({ date:r.date, spend:+r.spend||0 })); }
+
+const META_METRICS = ['spend','impressions','clicks','add_to_cart','checkouts','purchases','value'];
+const metaEmpty = () => Object.fromEntries(META_METRICS.map(k => [k, 0]));
+function metaAdd(a, r){ for(const k of META_METRICS) a[k] += r[k] || 0; return a; }   // acumula solo métricas, campo por campo
+function metaDerive(t){ return { ...t, ctr:div(t.clicks, t.impressions), cpc:div(t.spend, t.clicks), roas:div(t.value, t.spend), cpa:div(t.spend, t.purchases) }; }
+const metaSum = rows => metaDerive(rows.reduce(metaAdd, metaEmpty()));
+
+function shopSummary(orders){
+  const net = orders.reduce((a, o) => a + o.net, 0);
+  // Clientes: un cliente es "nuevo" en el periodo si alguno de sus pedidos del periodo es su primer pedido histórico.
+  // Los pedidos sin cliente (invitados) cuentan como un cliente nuevo cada uno.
+  const customers = new Map();
+  orders.forEach(o => {
+    const k = o.customer_id || `invitado:${o.id}`;
+    const c = customers.get(k) || { orders:0, isNew:false, identified:!!o.customer_id };
+    c.orders++; c.isNew = c.isNew || o.is_new; customers.set(k, c);
+  });
+  const all = [...customers.values()];
+  const identified = all.filter(c => c.identified);
+  return {
+    net, orders:orders.length, aov:div(net, orders.length),
+    newCustomers:all.filter(c => c.isNew).length, returningCustomers:all.filter(c => !c.isNew).length,
+    customers:all.length,
+    // Tasa de recompra: clientes identificados con 2+ pedidos en el periodo / clientes identificados del periodo.
+    repurchaseRate:div(identified.filter(c => c.orders >= 2).length, identified.length),
+    returningOrderShare:div(orders.filter(o => !o.is_new).length, orders.length),
+  };
+}
+
+/* ==========================================================================
+   Componentes de render
+   ========================================================================== */
+function deltaHtml(d, lowerIsBetter = false){
+  if(d == null || !isFinite(d)) return '<span class="delta flat">Sin comparativo</span>';
+  const good = lowerIsBetter ? d < 0 : d > 0;
+  const cls = Math.abs(d) < 0.5 ? 'flat' : (good ? 'up' : 'down');
+  return `<span class="delta ${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : ''} ${fmtDec.format(Math.abs(d))}% vs periodo anterior</span>`;
+}
+function kpiCards(el, items){
+  document.getElementById(el).innerHTML = items.map(k => `
+    <div class="card kpi${k.hero ? ' hero' : ''}">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      ${k.delta === undefined ? '' : deltaHtml(k.delta, k.lower)}
+      ${k.split ? `<div class="split">${k.split}</div>` : ''}
+    </div>`).join('');
+}
+function notice(id, msg){ const el = document.getElementById(id); el.innerHTML = msg || ''; el.hidden = !msg; }
+
+const charts = {};
+function bucketMode(range){ return daysBetween(range.start, range.end) > 62 ? 'week' : 'day'; }
+function bucketKey(date, mode){ if(mode === 'day') return date; const d = parseLocalDate(date); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return toStr(d); }
+function bucketLabel(k, mode){ const d = parseLocalDate(k); return `${mode === 'week' ? 'Sem. ' : ''}${d.getDate()} ${MESES[d.getMonth()]}`; }
+function bucketKeys(range){ const mode = bucketMode(range), keys = []; for(let d = range.start; d <= range.end; d = addDays(d, 1)){ const k = bucketKey(d, mode); if(!keys.includes(k)) keys.push(k); } return { keys, mode }; }
+
+/* ==========================================================================
+   Pestaña: Resumen
+   ========================================================================== */
+function renderResumen(S, range){
+  const prev = previousRange(range);
+  const ordersCur = S.orders ? inRange(S.orders, range) : null;
+  const ordersPrev = S.orders ? inRange(S.orders, prev) : null;
+  const sc = ordersCur ? shopSummary(ordersCur) : null, sp = ordersPrev ? shopSummary(ordersPrev) : null;
+
+  const spendOf = (rows, r) => rows ? inRange(rows, r).reduce((a, x) => a + x.spend, 0) : 0;
+  const metaCur = spendOf(S.metaRows, range), metaPrev = spendOf(S.metaRows, prev);
+  const gCur = spendOf(S.googleRows, range), gPrev = spendOf(S.googleRows, prev);
+  const spendCur = metaCur + gCur, spendPrev = metaPrev + gPrev;   // suma de TODOS los canales conectados
+  const channels = [S.metaRows && 'Meta', S.googleRows && 'Google'].filter(Boolean);
+
+  const msgs = [];
+  if(!S.orders) msgs.push('Shopify no respondió: ventas, pedidos, ROAS y CPA blended no se pueden calcular.');
+  if(!S.metaRows || !S.googleRows) msgs.push(`La inversión total solo incluye ${channels.length ? channels.join(' y ') : 'ningún canal'}, porque ${[!S.metaRows && 'Meta', !S.googleRows && 'Google'].filter(Boolean).join(' y ')} no respondió.`);
+  notice('resumenNotice', msgs.join('<br>'));
+
+  const roasC = sc ? div(sc.net, spendCur) : null, roasP = sp ? div(sp.net, spendPrev) : null;
+  const cpaC = sc ? div(spendCur, sc.orders) : null, cpaP = sp ? div(spendPrev, sp.orders) : null;
+  const cacC = sc ? div(spendCur, sc.newCustomers) : null;
+
+  kpiCards('kpisResumen', [
+    { label:'Ventas netas', value:money(sc?.net), delta:deltaPct(sc?.net, sp?.net), split:'Sin IVA ni envío, después de descuentos y devoluciones' },
+    { label:'Pedidos', value:int(sc?.orders), delta:deltaPct(sc?.orders, sp?.orders) },
+    { label:'Ticket promedio', value:money2(sc?.aov), delta:deltaPct(sc?.aov, sp?.aov) },
+    { label:'Clientes nuevos / recurrentes', value:sc ? `${int(sc.newCustomers)} / ${int(sc.returningCustomers)}` : '—', delta:deltaPct(sc?.newCustomers, sp?.newCustomers), split:sc ? `${pct(div(sc.newCustomers, sc.customers))} nuevos · la variación es de clientes nuevos` : '' },
+    { label:'Inversión total', value:money(spendCur), delta:deltaPct(spendCur, spendPrev), split:[S.metaRows && `Meta ${money(metaCur)}`, S.googleRows && `Google ${money(gCur)}`].filter(Boolean).join(' · ') },
+    { label:'ROAS blended', value:xRoas(roasC), delta:deltaPct(roasC, roasP), hero:true, split:'Ventas netas ÷ inversión total' },
+    { label:'CPA blended', value:money2(cpaC), delta:deltaPct(cpaC, cpaP), lower:true, split:`Inversión ÷ pedidos · por cliente nuevo ${money2(cacC)}` },
+  ]);
+
+  // Gráfica: barras de ventas netas + línea de inversión
+  const { keys, mode } = bucketKeys(range);
+  const sales = Object.fromEntries(keys.map(k => [k, 0])), spend = Object.fromEntries(keys.map(k => [k, 0]));
+  (ordersCur || []).forEach(o => { const k = bucketKey(o.date, mode); if(k in sales) sales[k] += o.net; });
+  [...(S.metaRows ? inRange(S.metaRows, range) : []), ...(S.googleRows ? inRange(S.googleRows, range) : [])].forEach(r => { const k = bucketKey(r.date, mode); if(k in spend) spend[k] += r.spend; });
+
+  charts.resumen?.destroy();
+  charts.resumen = new Chart(document.getElementById('chartResumen'), {
+    data:{ labels:keys.map(k => bucketLabel(k, mode)), datasets:[
+      // order bajo se dibuja encima: línea 0, barras 1
+      { type:'line', label:'Inversión total', yAxisID:'y1', data:keys.map(k => spend[k]), borderColor:css('--c-inversion'), backgroundColor:css('--c-inversion'), borderWidth:2.5, pointRadius:keys.length > 40 ? 0 : 3, tension:.3, order:0 },
+      { type:'bar', label:'Ventas netas', data:keys.map(k => sales[k]), backgroundColor:css('--c-ventas'), borderRadius:3, order:1 },
+    ]},
+    options:(() => { const o = baseChartOptions(v => money(v)); o.scales.y.title = { display:true, text:'Ventas netas', font:{ family:css('--font'), size:11 } };
+      o.scales.y1 = { position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Inversión', font:{ family:css('--font'), size:11 } }, ticks:{ font:{ family:css('--font'), size:11 }, callback:v => money(v) } }; return o; })(),
+  });
+}
+
+function baseChartOptions(fmt){
+  const font = { family:css('--font'), size:11 };
+  return {
+    responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{ position:'bottom', labels:{ font, usePointStyle:true, boxWidth:8 } }, tooltip:{ callbacks:{ label:c => ` ${c.dataset.label}: ${fmt(c.parsed.y)}` } } },
+    scales:{ x:{ grid:{ display:false }, ticks:{ font, maxRotation:0, autoSkip:true } }, y:{ beginAtZero:true, grid:{ color:css('--borde') }, ticks:{ font, callback:v => fmt(v) } } },
+  };
+}
+
+/* ==========================================================================
+   Pestaña: Meta Ads
+   ========================================================================== */
+const tblObjetivos = createTable({ tableId:'tblObjetivos', columns:[
+  { key:'objective', label:'Objetivo' },
+  { key:'campaigns', label:'Campañas', f:int },
+  { key:'spend', label:'Inversión', f:money },
+  { key:'share', label:'% inversión', f:pct },
+  { key:'purchases', label:'Compras', f:int },
+  { key:'roas', label:'ROAS', f:xRoas },
+], sortKey:'spend', pageSize:50 });
+
+const tblCampanas = createTable({ tableId:'tblCampanas', pagerId:'pgCampanas', noun:'campañas', columns:[
+  { key:'campaign', label:'Campaña' },
+  { key:'objective', label:'Objetivo', align:'left', f:v => `<span class="chip">${escapeHtml(v)}</span>` },
+  { key:'label', label:'Etiqueta', align:'left', f:v => `<span class="chip ${v === 'Retargeting' ? 'rtg' : ''}">${escapeHtml(v)}</span>` },
+  { key:'spend', label:'Inversión', f:money },
+  { key:'impressions', label:'Impresiones', f:int },
+  { key:'ctr', label:'CTR', f:pct },
+  { key:'cpc', label:'CPC', f:money2 },
+  { key:'purchases', label:'Compras', f:int },
+  { key:'value', label:'Valor de compra', f:money },
+  { key:'roas', label:'ROAS', f:xRoas },
+], sortKey:'spend', totalRow:list => { const t = metaSum(list); return { ...t, objective:undefined, label:undefined }; }, emptyText:'No hay campañas con inversión en este periodo y filtro.' });
+
+function renderMeta(S, range){
+  if(!S.metaRows){
+    notice('metaNotice', `Meta Ads no respondió: ${escapeHtml(S.errors.meta || '')}`);
+    kpiCards('kpisMeta', []); document.getElementById('funnel').innerHTML = ''; tblObjetivos.setRows([]); tblCampanas.setRows([]); return;
+  }
+  notice('metaNotice', '');
+  const cur = inRange(S.metaRows, range), prev = inRange(S.metaRows, previousRange(range));
+  const c = metaSum(cur), p = metaSum(prev);
+  kpiCards('kpisMeta', [
+    { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend) },
+    { label:'Impresiones', value:int(c.impressions), delta:deltaPct(c.impressions, p.impressions) },
+    { label:'CTR', value:pct(c.ctr), delta:deltaPct(c.ctr, p.ctr), split:'Clics en el enlace ÷ impresiones' },
+    { label:'CPC', value:money2(c.cpc), delta:deltaPct(c.cpc, p.cpc), lower:true },
+    { label:'Compras', value:int(c.purchases), delta:deltaPct(c.purchases, p.purchases), split:'Atribuidas por Meta' },
+    { label:'Valor de compra', value:money(c.value), delta:deltaPct(c.value, p.value), split:'Atribuido por Meta' },
+    { label:'ROAS (Meta)', value:xRoas(c.roas), delta:deltaPct(c.roas, p.roas), hero:true, split:'Valor de compra ÷ inversión' },
+  ]);
+
+  // Embudo
+  const steps = [['Impresiones', c.impressions], ['Clics', c.clicks], ['Agregar al carrito', c.add_to_cart], ['Inicio de pago', c.checkouts], ['Compra', c.purchases]];
+  const max = steps[0][1] || 1;
+  document.getElementById('funnel').innerHTML = steps.map(([name, v], i) => {
+    // Escala raíz para que las etapas finales sigan visibles junto a las impresiones
+    const w = Math.max(2, Math.sqrt(v / max) * 100);
+    const rate = i === 0 ? '' : `${pct(div(v, steps[i-1][1]))} de la etapa anterior`;
+    return `<div class="step"><span class="name">${name}</span><div class="track"><div class="fill" style="width:${w}%"></div></div><span class="rate"><b>${int(v)}</b>${rate}</span></div>`;
+  }).join('') + `<p class="note">El ancho de las barras usa escala de raíz cuadrada para que las últimas etapas se alcancen a ver. Conversión total de clic a compra: ${pct(div(c.purchases, c.clicks))}.</p>`;
+
+  // Campañas
+  const byCamp = new Map();
+  cur.forEach(r => {
+    if(!byCamp.has(r.campaign_id)) byCamp.set(r.campaign_id, { campaign_id:r.campaign_id, campaign:r.campaign, objective:r.objective, label:r.label, ...metaEmpty() });
+    metaAdd(byCamp.get(r.campaign_id), r);
+  });
+  const camps = [...byCamp.values()].map(metaDerive).filter(x => x.spend > 0 || x.impressions > 0);
+
+  // Por objetivo
+  const byObj = new Map();
+  camps.forEach(x => { const o = byObj.get(x.objective) || { objective:x.objective, campaigns:0, ...metaEmpty() }; o.campaigns++; metaAdd(o, x); byObj.set(x.objective, o); });
+  tblObjetivos.setRows([...byObj.values()].map(o => ({ ...metaDerive(o), share:div(o.spend, c.spend) })));
+
+  // Filtros de la tabla de campañas
+  fillSelect('fObjetivo', [...new Set(camps.map(x => x.objective))].sort(), 'Todos los objetivos');
+  fillSelect('fEtiqueta', [...new Set(camps.map(x => x.label))].sort(), 'Todas las etiquetas');
+  tblCampanas.setRows(camps);
+  applyCampaignFilter();
+}
+function fillSelect(id, values, allLabel){
+  const el = document.getElementById(id), keep = el.value;
+  el.innerHTML = `<option value="">${allLabel}</option>` + values.map(v => `<option${v === keep ? ' selected' : ''}>${escapeHtml(v)}</option>`).join('');
+}
+function applyCampaignFilter(){
+  const o = document.getElementById('fObjetivo').value, l = document.getElementById('fEtiqueta').value, q = document.getElementById('fCampana').value.trim().toLowerCase();
+  tblCampanas.setFilter(x => (!o || x.objective === o) && (!l || x.label === l) && (!q || x.campaign.toLowerCase().includes(q)));
+}
+['fObjetivo','fEtiqueta'].forEach(id => document.getElementById(id).addEventListener('change', applyCampaignFilter));
+document.getElementById('fCampana').addEventListener('input', applyCampaignFilter);
+
+/* ==========================================================================
+   Pestaña: Audiencias
+   ========================================================================== */
+const AUD_BLOCKS = [
+  { key:'age', title:'Edad', name:v => v === 'Unknown' || v === 'unknown' ? 'Sin dato' : v },
+  { key:'gender', title:'Género', name:v => ({ female:'Mujeres', male:'Hombres', unknown:'Sin dato' }[v] || v) },
+  { key:'device_platform', title:'Dispositivo', name:v => ({ mobile_app:'App móvil', mobile_web:'Web móvil', desktop:'Escritorio', unknown:'Sin dato' }[v] || v) },
+  { key:'publisher_platform', title:'Plataforma', name:v => ({ facebook:'Facebook', instagram:'Instagram', audience_network:'Audience Network', messenger:'Messenger', threads:'Threads', unknown:'Sin dato' }[v] || v) },
+];
+const AUD_METRIC_LABEL = { spend:'Inversión', impressions:'Impresiones', purchases:'Compras' };
+let audMetric = 'spend';
+const audTables = {};
+const shareBarAud = v => `<span class="bar-cell">${pct(v)}<i style="width:${Math.round((v || 0) * 60)}px"></i></span>`;
+
+// Etiquetas de % sobre cada segmento del donut
+const donutPctPlugin = {
+  id:'donutPct',
+  afterDatasetsDraw(chart){
+    const { ctx } = chart, ds = chart.data.datasets[0], total = ds.data.reduce((a, b) => a + b, 0);
+    if(!total) return;
+    chart.getDatasetMeta(0).data.forEach((arc, i) => {
+      const share = ds.data[i] / total; if(share < 0.05) return;
+      const { x, y } = arc.tooltipPosition();
+      ctx.save(); ctx.font = `600 12px ${css('--font')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = i === 1 || i === 3 ? css('--marino') : css('--blanco');
+      ctx.fillText(`${Math.round(share * 100)}%`, x, y); ctx.restore();
+    });
+  },
+};
+
+function buildAudGrid(){
+  document.getElementById('audGrid').innerHTML = AUD_BLOCKS.map(b => `
+    <div class="card">
+      <h2>${b.title}</h2>
+      <div class="donut-box"><canvas id="donut_${b.key}" aria-label="${b.title}"></canvas></div>
+      <div class="table-wrap"><table id="tblAud_${b.key}"></table></div>
+      <div class="pager" id="pgAud_${b.key}"></div>
+    </div>`).join('');
+  AUD_BLOCKS.forEach(b => {
+    audTables[b.key] = createTable({ tableId:`tblAud_${b.key}`, pagerId:`pgAud_${b.key}`, pageSize:8, noun:'segmentos', sortKey:'spend', columns:[
+      { key:'name', label:b.title },
+      { key:'spend', label:'Inversión', f:money },
+      { key:'impressions', label:'Impresiones', f:int },
+      { key:'purchases', label:'Compras', f:int },
+      { key:'share', label:'% del total', f:shareBarAud },
+    ]});
+  });
+}
+buildAudGrid();
+
+function renderAudiencias(S){
+  if(!S.audRows){
+    notice('audNotice', `Las audiencias de Meta no respondieron: ${escapeHtml(S.errors.audiences || '')}`);
+    AUD_BLOCKS.forEach(b => { audTables[b.key].setRows([]); charts[`d_${b.key}`]?.destroy(); }); return;
+  }
+  notice('audNotice', '');
+  AUD_BLOCKS.forEach(b => {
+    const agg = new Map();
+    S.audRows.filter(r => r.breakdown === b.key).forEach(r => {
+      const k = b.name(r.key); const a = agg.get(k) || { name:k, spend:0, impressions:0, purchases:0 };
+      a.spend += +r.spend || 0; a.impressions += +r.impressions || 0; a.purchases += +r.purchases || 0; agg.set(k, a);
+    });
+    const rows = [...agg.values()];
+    const tot = { spend:0, impressions:0, purchases:0 }; rows.forEach(r => { for(const m in tot) tot[m] += r[m]; });
+    rows.forEach(r => { r.share = div(r[audMetric], tot[audMetric]); });
+    audTables[b.key].setRows(rows);
+
+    // Donut: Top 3 + "Otros" según la métrica elegida
+    const sorted = [...rows].sort((a, b2) => b2[audMetric] - a[audMetric]);
+    const top = sorted.slice(0, 3), rest = sorted.slice(3).reduce((a, r) => a + r[audMetric], 0);
+    const labels = top.map(r => r.name), data = top.map(r => r[audMetric]);
+    if(rest > 0){ labels.push('Otros'); data.push(rest); }
+    charts[`d_${b.key}`]?.destroy();
+    charts[`d_${b.key}`] = new Chart(document.getElementById(`donut_${b.key}`), {
+      type:'doughnut',
+      data:{ labels, datasets:[{ data, backgroundColor:[css('--c-donut-1'), css('--c-donut-2'), css('--c-donut-3'), css('--c-donut-otros')], borderWidth:2, borderColor:css('--blanco') }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'55%',
+        plugins:{ legend:{ position:'bottom', labels:{ font:{ family:css('--font'), size:11 }, usePointStyle:true, boxWidth:8 } },
+          tooltip:{ callbacks:{ label:c => { const t = c.dataset.data.reduce((a, b2) => a + b2, 0); const v = audMetric === 'spend' ? money(c.parsed) : int(c.parsed); return ` ${c.label}: ${v} (${pct(div(c.parsed, t))})`; } } } } },
+      plugins:[donutPctPlugin],
+    });
+  });
+}
+document.querySelectorAll('#audMetric button').forEach(b => b.addEventListener('click', () => {
+  audMetric = b.dataset.m;
+  document.querySelectorAll('#audMetric button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  renderAudiencias(STATE);
+}));
+
+/* ==========================================================================
+   Pestaña: Productos y tienda
+   ========================================================================== */
+const shareBar = (v, r) => `<span class="bar-cell">${pct(v)}<i style="width:${Math.round((v || 0) * 80)}px"></i></span>`;
+const tblProductos = createTable({ tableId:'tblProductos', pagerId:'pgProductos', noun:'productos', sortKey:'net', columns:[
+  { key:'title', label:'Producto' },
+  { key:'type', label:'Categoría', align:'left', f:v => escapeHtml(v || 'Sin categoría') },
+  { key:'units', label:'Unidades', f:int },
+  { key:'orders', label:'Pedidos', f:int },
+  { key:'net', label:'Ventas netas', f:money },
+  { key:'share', label:'% de ventas', f:shareBar },
+], totalRow:list => ({ type:undefined, units:list.reduce((a, r) => a + r.units, 0), orders:undefined, net:list.reduce((a, r) => a + r.net, 0), share:undefined }) });
+const groupCols = label => [
+  { key:'name', label }, { key:'units', label:'Unidades', f:int }, { key:'net', label:'Ventas netas', f:money }, { key:'share', label:'% de ventas', f:shareBar },
+];
+const tblCategorias = createTable({ tableId:'tblCategorias', pagerId:'pgCategorias', noun:'categorías', sortKey:'net', pageSize:10, columns:groupCols('Categoría') });
+const tblMarcas = createTable({ tableId:'tblMarcas', pagerId:'pgMarcas', noun:'marcas', sortKey:'net', pageSize:10, columns:groupCols('Marca') });
+
+function renderProductos(S, range){
+  if(!S.orders){
+    notice('prodNotice', `Shopify no respondió: ${escapeHtml(S.errors.shopify || '')}`);
+    kpiCards('kpisProductos', []); [tblProductos, tblCategorias, tblMarcas].forEach(t => t.setRows([])); return;
+  }
+  notice('prodNotice', '');
+  const cur = inRange(S.orders, range), prev = inRange(S.orders, previousRange(range));
+  const sc = shopSummary(cur), sp = shopSummary(prev);
+
+  const prods = new Map();
+  cur.forEach(o => {
+    const seen = new Set();
+    o.items.forEach(it => {
+      const p = prods.get(it.product_id) || { title:it.title, type:it.type, vendor:it.vendor, units:0, orders:0, net:0 };
+      p.units += it.qty; p.net += it.net; if(!seen.has(it.product_id)){ p.orders++; seen.add(it.product_id); }
+      prods.set(it.product_id, p);
+    });
+  });
+  const list = [...prods.values()];
+  const totalNet = list.reduce((a, p) => a + p.net, 0), units = list.reduce((a, p) => a + p.units, 0);
+  list.forEach(p => p.share = div(p.net, totalNet));
+  const prevUnits = prev.reduce((a, o) => a + o.items.reduce((b, it) => b + it.qty, 0), 0);
+
+  kpiCards('kpisProductos', [
+    { label:'Unidades vendidas', value:int(units), delta:deltaPct(units, prevUnits) },
+    { label:'Productos distintos vendidos', value:int(list.length) },
+    { label:'Tasa de recompra', value:pct(sc.repurchaseRate), delta:deltaPct(sc.repurchaseRate, sp.repurchaseRate), split:'Clientes con 2 o más pedidos en el periodo' },
+    { label:'Pedidos de clientes recurrentes', value:pct(sc.returningOrderShare), delta:deltaPct(sc.returningOrderShare, sp.returningOrderShare), split:'Pedidos que no son el primero del cliente' },
+  ]);
+  tblProductos.setRows(list);
+
+  const group = key => {
+    const m = new Map();
+    list.forEach(p => { const k = p[key] || (key === 'type' ? 'Sin categoría' : 'Sin marca'); const g = m.get(k) || { name:k, units:0, net:0 }; g.units += p.units; g.net += p.net; m.set(k, g); });
+    return [...m.values()].map(g => ({ ...g, share:div(g.net, totalNet) }));
+  };
+  tblCategorias.setRows(group('type'));
+  tblMarcas.setRows(group('vendor'));
+}
+document.getElementById('fProducto').addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); tblProductos.setFilter(p => !q || p.title.toLowerCase().includes(q)); });
+
+/* ==========================================================================
+   Estado de las fuentes
+   ========================================================================== */
+function renderStatus(status, errors){
+  const names = { shopify:'Shopify', meta:'Meta Ads', google:'Google Ads', audiences:'Audiencias Meta' };
+  const pills = Object.keys(names).map(k => status[k] === 'ok'
+    ? `<span class="pill ok">🟢 ${names[k]}</span>`
+    : `<span class="pill err" title="${escapeHtml(errors[k] || 'Sin respuesta')}">⚠️ ${names[k]}</span>`);
+  if(DEMO) pills.unshift('<span class="pill">Datos de ejemplo</span>');
+  document.getElementById('status').innerHTML = pills.join('');
+}
+
+/* ==========================================================================
+   Orquestación
+   ========================================================================== */
+let currentRangeKey = '30d';
+let STATE = {};
+let loadSeq = 0;
+
+async function refresh(){
+  const range = resolveRange(currentRangeKey);
+  if(!range) return;
+  const seq = ++loadSeq;
+  document.getElementById('rangeLabel').textContent = (range.start === range.end ? niceDate(range.start) : `${niceDate(range.start)} – ${niceDate(range.end)}`) + ` · ${TZ}`;
+  document.getElementById('status').innerHTML = '<span class="pill load">Cargando…</span>';
+
+  const d = await loadAll(range);
+  if(seq !== loadSeq) return;   // llegó una respuesta vieja después de cambiar el rango
+
+  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, errors:d.errors };
+  STATE = {
+    orders: d.shopify ? d.shopify.orders : null,
+    metaRows: d.meta ? normMeta(d.meta.rows || []) : null,
+    googleRows: d.google ? normGoogle(d.google.rows || []) : null,
+    audRows: d.audiences ? d.audiences.rows : null,
+    errors: d.errors,
+  };
+  window.RAW_ORDERS = STATE.orders || []; window.RAW_META_ROWS = STATE.metaRows || [];
+  window.RAW_GOOGLE_ROWS = STATE.googleRows || []; window.RAW_AUDIENCES = STATE.audRows || [];
+  window.STATE = STATE;
+
+  renderStatus(d.status, d.errors);
+  renderResumen(STATE, range);
+  renderMeta(STATE, range);
+  renderAudiencias(STATE);
+  renderProductos(STATE, range);
+  document.getElementById('footerInfo').textContent = `Tiba Salud · actualizado ${new Date().toLocaleString('es-MX', { timeZone:TZ, dateStyle:'medium', timeStyle:'short' })}`;
+}
+
+document.querySelectorAll('.controls button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.controls button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  currentRangeKey = b.dataset.range;
+  document.getElementById('custom').classList.toggle('on', currentRangeKey === 'custom');
+  if(currentRangeKey === 'custom'){ const s = document.getElementById('customStart'), e = document.getElementById('customEnd'); if(!s.value){ e.value = todayStr(); s.value = addDays(e.value, -13); } }
+  refresh();
+}));
+['customStart','customEnd'].forEach(id => document.getElementById(id).addEventListener('change', refresh));
+
+// Pestañas (con #resumen, #meta, #audiencias, #productos en la URL)
+function showTab(name){
+  if(!document.querySelector(`[data-panel="${name}"]`)) name = 'resumen';
+  document.querySelectorAll('.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
+  document.querySelectorAll('[data-panel]').forEach(p => p.hidden = p.dataset.panel !== name);
+  // Las gráficas creadas con la pestaña oculta miden 0: se redibujan al mostrarla.
+  requestAnimationFrame(() => {
+    if(name === 'audiencias' && STATE.audRows) renderAudiencias(STATE);
+    else Object.values(charts).forEach(c => c?.resize());
+  });
+}
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => { history.replaceState(null, '', `#${b.dataset.tab}`); showTab(b.dataset.tab); }));
+showTab(location.hash.slice(1));
+
+/* ==========================================================================
+   Datos de ejemplo (?demo=1) para revisar diseño y lógica sin APIs
+   ========================================================================== */
+function demoData(since, until, range){
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const metaCamps = [
+    ['1','Kit Quema y Reduce | Conversiones','OUTCOME_SALES'],['2','Kirei - Belleza Oct','OUTCOME_SALES'],['3','RTG carrito abandonado','OUTCOME_SALES'],
+    ['4','Scudo defensas','OUTCOME_SALES'],['5','Tráfico blog sueño','OUTCOME_TRAFFIC'],['6','Alcance marca','OUTCOME_AWARENESS'],
+    ['7','Retargeting visitantes 30d','OUTCOME_SALES'],['8','Video Pultsu','OUTCOME_ENGAGEMENT'],['9','Catálogo Advantage+','OUTCOME_SALES'],['10','Lead magnet guía','OUTCOME_LEADS'],
+  ];
+  const products = [
+    ['p1','Kirei','Fórmulas Funcionales',596],['p2','Pultsu','Fórmulas Funcionales',479],['p3','Scudo','Fórmulas Funcionales',479],['p4','Laila','Fórmulas Funcionales',479],
+    ['p5','Té Verde','Complementos Básicos',410],['p6','Óxido de Magnesio','Complementos Básicos',299],['p7','Cúrcuma','Complementos Básicos',479],
+    ['p8','Kit Quema y Reduce','Kits',1063],['p9','Kit Six Pack Kirei','Kits',2519],['p10','NAC','Complementos Básicos',464],['p11','Toronjil','Complementos Básicos',369],['p12','Idea','Fórmulas Funcionales',479],
+  ];
+  const metaRows = [], googleRows = [], orders = [];
+  let orderId = 1;
+  const seenCustomers = new Set();
+  for(let d = since; d <= until; d = addDays(d, 1)){
+    metaCamps.forEach(([id, name, obj]) => {
+      const spend = Math.round((obj === 'OUTCOME_SALES' ? 700 : 250) * (0.6 + rnd()));
+      const imp = Math.round(spend * (45 + rnd() * 25)), clicks = Math.round(imp * (0.008 + rnd() * 0.012));
+      const atc = Math.round(clicks * (0.06 + rnd() * 0.05)), ic = Math.round(atc * (0.45 + rnd() * 0.2));
+      const pur = obj === 'OUTCOME_SALES' ? Math.round(ic * (0.08 + rnd() * 0.06)) : 0;
+      metaRows.push({ date:d, campaign_id:id, campaign:name, objective:obj, spend, impressions:imp, link_clicks:clicks, add_to_cart:atc, checkouts:ic, purchases:pur, purchase_value:pur * (700 + rnd() * 600) });
+    });
+    googleRows.push({ date:d, spend:Math.round(2200 + rnd() * 1600) });
+    const n = Math.round(18 + rnd() * 14);
+    for(let i = 0; i < n; i++){
+      const cust = `c${Math.floor(rnd() * 900)}`;
+      const isNew = !seenCustomers.has(cust) && rnd() > 0.35; seenCustomers.add(cust);
+      const items = []; const k = 1 + Math.floor(rnd() * 3);
+      for(let j = 0; j < k; j++){ const p = products[Math.floor(Math.pow(rnd(), 1.6) * products.length)]; const qty = 1 + Math.floor(rnd() * 2); items.push({ product_id:p[0], title:p[1], type:p[2], vendor:'Tiba Salud', qty, net:p[3] * qty / 1.16 }); }
+      orders.push({ id:`o${orderId++}`, date:d, customer_id:rnd() > 0.06 ? cust : null, is_new:isNew, net:items.reduce((a, it) => a + it.net, 0), items });
+    }
+  }
+  const audRows = [];
+  const aud = { age:['18-24','25-34','35-44','45-54','55-64','65+'], gender:['female','male','unknown'], device_platform:['mobile_app','mobile_web','desktop'], publisher_platform:['instagram','facebook','audience_network','messenger','threads'] };
+  const weights = { age:[.08,.24,.31,.22,.11,.04], gender:[.68,.29,.03], device_platform:[.82,.12,.06], publisher_platform:[.58,.33,.05,.03,.01] };
+  for(const b in aud) aud[b].forEach((k, i) => { const w = weights[b][i]; audRows.push({ breakdown:b, key:k, spend:180000 * w, impressions:9e6 * w * (0.9 + rnd() * 0.2), purchases:Math.round(600 * w * (0.8 + rnd() * 0.4)) }); });
+  return { shopify:{ orders }, meta:{ rows:metaRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok' }, errors:{} };
+}
+
+loadShopInfo().then(refresh);
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "functions": {
+    "api/shopify.js": { "maxDuration": 60 },
+    "api/meta-ads.js": { "maxDuration": 30 }
+  }
+}
