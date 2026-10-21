@@ -518,16 +518,20 @@ function renderResumen(S, range){
   (ordersCur || []).forEach(o => { const k = bucketKey(o.date, mode); if(k in sales) sales[k] += o.net; });
   [...(S.metaRows ? inRange(S.metaRows, range) : []), ...(S.googleRows ? inRange(S.googleRows, range) : [])].forEach(r => { const k = bucketKey(r.date, mode); if(k in spend) spend[k] += r.spend; });
 
+  // Si Shopify no respondió, no se dibujan barras ni su eje (evita un eje de ventas vacío con $0–$1).
+  const hasSales = !!ordersCur;
+  const font = { family:css('--font'), size:11 };
+  const datasets = [
+    // order bajo se dibuja encima: línea 0, barras 1
+    { type:'line', label:'Inversión total', yAxisID:hasSales ? 'y1' : 'y', data:keys.map(k => spend[k]), borderColor:css('--c-inversion'), backgroundColor:css('--c-inversion'), borderWidth:2.5, pointRadius:keys.length > 40 ? 0 : 3, tension:.3, order:0 },
+  ];
+  if(hasSales) datasets.push({ type:'bar', label:'Ventas netas', yAxisID:'y', data:keys.map(k => sales[k]), backgroundColor:css('--c-ventas'), borderRadius:3, order:1 });
+  const opts = baseChartOptions(v => money(v));
+  opts.scales.y.title = { display:true, text:hasSales ? 'Ventas netas' : 'Inversión', font };
+  if(hasSales) opts.scales.y1 = { position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Inversión', font }, ticks:{ font, callback:v => money(v) } };
+
   charts.resumen?.destroy();
-  charts.resumen = new Chart(document.getElementById('chartResumen'), {
-    data:{ labels:keys.map(k => bucketLabel(k, mode)), datasets:[
-      // order bajo se dibuja encima: línea 0, barras 1
-      { type:'line', label:'Inversión total', yAxisID:'y1', data:keys.map(k => spend[k]), borderColor:css('--c-inversion'), backgroundColor:css('--c-inversion'), borderWidth:2.5, pointRadius:keys.length > 40 ? 0 : 3, tension:.3, order:0 },
-      { type:'bar', label:'Ventas netas', data:keys.map(k => sales[k]), backgroundColor:css('--c-ventas'), borderRadius:3, order:1 },
-    ]},
-    options:(() => { const o = baseChartOptions(v => money(v)); o.scales.y.title = { display:true, text:'Ventas netas', font:{ family:css('--font'), size:11 } };
-      o.scales.y1 = { position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Inversión', font:{ family:css('--font'), size:11 } }, ticks:{ font:{ family:css('--font'), size:11 }, callback:v => money(v) } }; return o; })(),
-  });
+  charts.resumen = new Chart(document.getElementById('chartResumen'), { data:{ labels:keys.map(k => bucketLabel(k, mode)), datasets }, options:opts });
 }
 
 function baseChartOptions(fmt){
