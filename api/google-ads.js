@@ -3,7 +3,8 @@
 // Google Ads API por REST (sin SDK). Filas diarias por campaña, sin agregar.
 //
 // Variables de entorno:
-//   GOOGLE_ADS_DEVELOPER_TOKEN, GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET,
+//   GOOGLE_ADS_CLIENT_ID, GOOGLE_ADS_CLIENT_SECRET (OAuth del proyecto de Cloud con acceso a la API),
+//   GOOGLE_ADS_DEVELOPER_TOKEN (opcional; Google ya no lo usa desde sep-2026),
 //   GOOGLE_ADS_REFRESH_TOKEN, GOOGLE_ADS_CUSTOMER_ID (sin guiones),
 //   GOOGLE_ADS_LOGIN_CUSTOMER_ID (sin guiones, solo si se accede vía MCC),
 //   GOOGLE_ADS_API_VERSION (opcional, default v23)
@@ -53,8 +54,10 @@ async function gaql(query) {
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${await getAccessToken()}`,
-    "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN,
   };
+  // Desde el 9-sep-2026 Google ignora el developer token: el nivel de acceso vive en el
+  // proyecto de Google Cloud dueño del OAuth client. Solo se manda si existe la variable.
+  if (process.env.GOOGLE_ADS_DEVELOPER_TOKEN) headers["developer-token"] = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   const login = stripDashes(process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID);
   if (login) headers["login-customer-id"] = login;
 
