@@ -106,12 +106,54 @@
   .note{ font-size:.8rem; color:var(--texto-suave); margin-top:.75rem; }
   .notice{ background:#FFF6EF; border:1px solid #F7D2B8; color:#7A3C12; border-radius:8px; padding:.75rem 1rem; font-size:.85rem; }
 
+  /* Secciones estilo reporte (Resumen) */
+  .sec{ border-top:2px solid var(--marino); padding-top:.9rem; }
+  .eyebrow{ font-size:.68rem; font-weight:600; letter-spacing:.14em; text-transform:uppercase; color:var(--acero); }
+  .sec-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:1rem; flex-wrap:wrap; margin:.15rem 0 .9rem; }
+  .sec-title{ font-size:1.25rem; font-weight:600; color:var(--marino); margin:0; }
+  .sec-meta{ font-size:.75rem; color:var(--texto-suave); text-align:right; max-width:360px; }
+  .kgrid{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); background:var(--blanco); border:1px solid var(--borde); }
+  .kcell{ padding:1rem 1.1rem 1.1rem; border-right:1px solid var(--borde); border-bottom:1px solid var(--borde); min-width:0; }
+  .kcell .klabel{ font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--texto-suave); border-top:2px solid var(--marino); padding-top:.5rem; min-height:2.4em; }
+  .kcell .kvalue{ font-size:1.75rem; font-weight:700; color:var(--marino); font-variant-numeric:tabular-nums; margin:.25rem 0 .45rem; padding-bottom:.45rem; border-bottom:1px solid var(--borde); }
+  .kcell.hero .kvalue{ color:var(--naranja); }
+  .kd{ font-size:.72rem; font-weight:500; } .kd.up{ color:var(--sube); } .kd.down{ color:var(--baja); } .kd.flat{ color:var(--texto-suave); }
+  .panel{ background:var(--blanco); border:1px solid var(--borde); padding:1.1rem 1.25rem; }
+  .table-plain th{ font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; }
+  .table-plain tr.shop td{ color:var(--texto); font-weight:400; }
+  .table-plain td.var{ font-weight:700; color:var(--marino); }
+  .ar{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); border:1px solid var(--borde); }
+  .ar > div{ padding:1.1rem 1.25rem; }
+  .ar .adq{ background:#E4F3FC; border-left:4px solid var(--marino); }
+  .ar .ret{ background:var(--blanco); }
+  .ar .metric{ padding:.6rem 0; border-bottom:1px solid rgba(5,37,52,.1); }
+  .ar .metric:last-child{ border-bottom:0; }
+  .ar .mlabel{ font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--texto-suave); }
+  .ar .mvalue{ font-size:1.35rem; font-weight:700; color:var(--marino); font-variant-numeric:tabular-nums; }
+  .rank-range{ font-size:.66rem; letter-spacing:.12em; text-transform:uppercase; color:var(--acero); margin-bottom:.6rem; font-weight:600; }
+  .rank{ display:grid; grid-template-columns:2rem minmax(0,1fr) auto; gap:.25rem .5rem; padding:.55rem 0; }
+  .rank .n{ font-size:.75rem; color:var(--texto-suave); padding-top:.15rem; }
+  .rank .name{ color:var(--marino); font-weight:500; }
+  .rank .sub2{ grid-column:2; font-size:.78rem; font-weight:600; color:var(--acero); }
+  .rank .amt{ text-align:right; font-weight:700; color:var(--marino); font-variant-numeric:tabular-nums; }
+  .rank .kd{ grid-column:3; text-align:right; }
+  .fun-row{ margin:.2rem 0 1rem; }
+  .fun-top{ display:flex; justify-content:space-between; gap:1rem; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--texto-suave); margin-bottom:.35rem; }
+  .fun-top b{ font-size:.95rem; letter-spacing:0; text-transform:none; color:var(--marino); font-variant-numeric:tabular-nums; }
+  .fun-top small{ font-size:.75rem; letter-spacing:0; text-transform:none; color:var(--texto-suave); margin-left:.4rem; }
+  .fun-bar{ height:10px; background:#E3EAEE; }
+  .fun-bar i{ display:block; height:100%; background:var(--marino); }
+  .fun-row:nth-child(4) .fun-bar i{ background:var(--naranja); }
+  .empty{ font-size:.85rem; color:var(--texto-suave); padding:.5rem 0; }
+
   footer{ background:var(--carbon); color:var(--texto-claro); font-size:.78rem; }
   footer div{ max-width:1320px; margin:0 auto; padding:1rem 1.5rem; opacity:.75; }
 
-  @media (max-width:1100px){ .kpis, .kpis.k7{ grid-template-columns:repeat(3,minmax(0,1fr)); } .grid-21, .grid-2{ grid-template-columns:minmax(0,1fr); } }
+  @media (max-width:1100px){ .kpis, .kpis.k7{ grid-template-columns:repeat(3,minmax(0,1fr)); } .grid-21, .grid-2{ grid-template-columns:minmax(0,1fr); } .kgrid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
   @media (max-width:640px){
-    .kpis, .kpis.k7{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .kpis, .kpis.k7, .kgrid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .ar{ grid-template-columns:minmax(0,1fr); }
+    .kcell .kvalue{ font-size:1.35rem; }
     .range-label{ margin-left:0; width:100%; text-align:left; }
     .chart-box{ height:270px; }
     .step{ grid-template-columns:100px minmax(0,1fr); } .step .rate{ grid-column:2; text-align:left; }
@@ -130,6 +172,7 @@
   <nav class="tabs" role="tablist" aria-label="Secciones">
     <button role="tab" data-tab="resumen" aria-selected="true">Resumen</button>
     <button role="tab" data-tab="meta" aria-selected="false">Meta Ads</button>
+    <button role="tab" data-tab="google" aria-selected="false">Google Ads</button>
     <button role="tab" data-tab="audiencias" aria-selected="false">Audiencias</button>
     <button role="tab" data-tab="productos" aria-selected="false">Productos y tienda</button>
   </nav>
@@ -153,11 +196,74 @@
   <!-- ===================== RESUMEN ===================== -->
   <section class="stack" data-panel="resumen" role="tabpanel">
     <div class="notice" id="resumenNotice" hidden></div>
-    <div class="kpis k7" id="kpisResumen"></div>
+
+    <div class="sec">
+      <div class="eyebrow">KPIs</div>
+      <div class="sec-head"><h2 class="sec-title">Indicadores clave</h2><span class="sec-meta" id="kpiMeta"></span></div>
+      <div class="kgrid" id="kpisResumen"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Tendencia</div>
+      <div class="sec-head"><h2 class="sec-title" id="mensualTitle">Desglose mensual (Ene → hoy)</h2><span class="sec-meta">Gasto total (Meta + Google) vs. ventas netas (Shopify) y pedidos. No depende del filtro de fechas.</span></div>
+      <div class="panel"><div class="notice" id="mensualNotice" hidden style="margin-bottom:1rem"></div><div class="chart-box"><canvas id="chartMensual" aria-label="Desglose mensual de gasto, ventas netas y pedidos"></canvas></div></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Cruce de plataformas</div>
+      <div class="sec-head"><h2 class="sec-title">Plataformas vs. Shopify</h2><span class="sec-meta">Comparación, no atribución</span></div>
+      <div class="panel">
+        <div class="table-wrap"><table class="table-plain" id="tblCruce"></table></div>
+        <p class="note">Compara lo que reporta cada plataforma contra las ventas reales de Shopify; no es atribución por transacción ni asume qué venta vino de qué canal. "% var." se calcula contra las ventas netas de Shopify.</p>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Comportamiento</div>
+      <div class="sec-head"><h2 class="sec-title">Adquisición vs. Retención</h2></div>
+      <div class="ar" id="adqRet"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Geografía</div>
+      <div class="sec-head"><h2 class="sec-title">Top estados</h2><span class="sec-meta">Top 5 por ventas netas del periodo, comparado contra el periodo anterior de la misma duración</span></div>
+      <div class="panel" id="topEstados"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Catálogo</div>
+      <div class="sec-head"><h2 class="sec-title">Top productos</h2><span class="sec-meta">Top 5 por ventas netas del periodo, comparado contra el periodo anterior de la misma duración</span></div>
+      <div class="panel" id="topProductos"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Funnel</div>
+      <div class="sec-head"><h2 class="sec-title">Visitas → Compras</h2><span class="sec-meta">Visitas y carrito: Google Analytics 4. Checkout y compras: datos reales de Shopify</span></div>
+      <div class="panel" id="funnelResumen"></div>
+    </div>
+  </section>
+
+  <!-- ===================== GOOGLE ADS ===================== -->
+  <section class="stack" data-panel="google" role="tabpanel" hidden>
+    <div class="notice" id="googleNotice" hidden></div>
+    <div class="kpis" id="kpisGoogle"></div>
     <div class="card">
-      <h2>Ventas netas e inversión</h2>
-      <p class="sub">Ventas netas diarias de Shopify (sin IVA ni envío, eje izquierdo) e inversión total de todos los canales conectados (eje derecho).</p>
-      <div class="chart-box"><canvas id="chartResumen" aria-label="Ventas netas diarias e inversión"></canvas></div>
+      <h2>Inversión y conversiones</h2>
+      <p class="sub">Inversión diaria (barras, eje izquierdo) y conversiones (línea, eje derecho).</p>
+      <div class="chart-box"><canvas id="chartGoogle" aria-label="Inversión diaria y conversiones de Google Ads"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Por tipo de campaña</h2>
+      <p class="sub">Search, Performance Max, Shopping, etc.</p>
+      <div class="table-wrap"><table id="tblGTipos"></table></div>
+    </div>
+    <div class="card">
+      <h2>Campañas</h2>
+      <p class="sub">Haz clic en una columna para ordenar.</p>
+      <div class="table-tools"><input type="search" id="fGCampana" placeholder="Buscar campaña" aria-label="Buscar campaña"></div>
+      <div class="table-wrap"><table id="tblGCampanas"></table></div>
+      <div class="pager" id="pgGCampanas"></div>
+      <p class="note">Conversiones y valor de conversión son los que reporta Google Ads con su atribución.</p>
     </div>
   </section>
 
@@ -264,7 +370,8 @@ const DEMO = new URLSearchParams(location.search).has('demo');   // ?demo=1 → 
 /* ==========================================================================
    Utilidades
    ========================================================================== */
-let TZ = 'America/Mexico_City';   // se reemplaza por shop.ianaTimezone al cargar
+let TZ = 'America/Mexico_City';
+if(window.Chart) Chart.defaults.animation.duration = 300;   // se reemplaza por shop.ianaTimezone al cargar
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fmtMoney = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:0 });
 const fmtMoney2 = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -381,17 +488,37 @@ async function loadShopInfo(){
   } catch(e){ /* si falla, se queda la zona por defecto y el error se verá al cargar Shopify */ }
 }
 
+// Desglose mensual Ene → hoy: no depende del rango, se pide una vez por carga de página.
+let MONTHLY_PROMISE = null;
+function loadMonthly(){
+  if(!MONTHLY_PROMISE){
+    const t = todayStr(), q = `view=monthly&since=${t.slice(0,4)}-01-01&until=${t}`;
+    MONTHLY_PROMISE = Promise.allSettled([getJSON(`/api/shopify?${q}`), getJSON(`/api/meta-ads?${q}`), getJSON(`/api/google-ads?${q}`)])
+      .then(([sh, me, go]) => ({
+        shopify: sh.status === 'fulfilled' ? sh.value.months : null,
+        meta: me.status === 'fulfilled' ? me.value.rows : null,
+        google: go.status === 'fulfilled' ? go.value.rows : null,
+        errors: { shopify:sh.reason?.message, meta:me.reason?.message, google:go.reason?.message },
+      }));
+  }
+  return MONTHLY_PROMISE;
+}
+
 async function loadAll(range){
   const prev = previousRange(range);
   const since = prev.start, until = range.end;   // una consulta cubre periodo actual + anterior
   if(DEMO) return demoData(since, until, range);
 
   const q = `since=${since}&until=${until}`;
+  const cur = `since=${range.start}&until=${range.end}`;
   const jobs = {
     shopify: getJSON(`/api/shopify?${q}`),
     meta: getJSON(`/api/meta-ads?${q}`),
     google: getJSON(`/api/google-ads?${q}`),
-    audiences: getJSON(`/api/meta-ads?view=audiences&since=${range.start}&until=${range.end}`),
+    audiences: getJSON(`/api/meta-ads?view=audiences&${cur}`),
+    ga4: getJSON(`/api/ga4?${cur}`),
+    checkouts: getJSON(`/api/shopify?view=checkouts&${cur}`),
+    monthly: loadMonthly(),
   };
   const keys = Object.keys(jobs);
   const settled = await Promise.allSettled(Object.values(jobs));
@@ -422,7 +549,19 @@ function normMeta(rows){
     add_to_cart:+r.add_to_cart||0, checkouts:+r.checkouts||0, purchases:+r.purchases||0, value:+r.purchase_value||0,
   }));
 }
-function normGoogle(rows){ return rows.map(r => ({ date:r.date, spend:+r.spend||0 })); }
+const CHANNEL_LABELS = { SEARCH:'Search', PERFORMANCE_MAX:'Performance Max', SHOPPING:'Shopping', DISPLAY:'Display', VIDEO:'YouTube', DEMAND_GEN:'Demand Gen', DISCOVERY:'Discovery', SMART:'Smart', LOCAL:'Local', MULTI_CHANNEL:'App' };
+function normGoogle(rows){
+  return rows.map(r => ({
+    date:r.date, campaign_id:String(r.campaign_id || ''), campaign:r.campaign || '(sin nombre)', status:r.status || '',
+    channel:CHANNEL_LABELS[r.channel_type] || r.channel_type || 'Otro',
+    spend:+r.spend||0, impressions:+r.impressions||0, clicks:+r.clicks||0, purchases:+r.purchases||0, value:+r.purchase_value||0,
+  }));
+}
+const G_METRICS = ['spend','impressions','clicks','purchases','value'];
+const gEmpty = () => Object.fromEntries(G_METRICS.map(k => [k, 0]));
+function gAdd(a, r){ for(const k of G_METRICS) a[k] += r[k] || 0; return a; }
+function gDerive(t){ return { ...t, ctr:div(t.clicks, t.impressions), cpc:div(t.spend, t.clicks), roas:div(t.value, t.spend), cpa:div(t.spend, t.purchases) }; }
+const gSum = rows => gDerive(rows.reduce(gAdd, gEmpty()));
 
 const META_METRICS = ['spend','impressions','clicks','add_to_cart','checkouts','purchases','value'];
 const metaEmpty = () => Object.fromEntries(META_METRICS.map(k => [k, 0]));
@@ -432,6 +571,10 @@ const metaSum = rows => metaDerive(rows.reduce(metaAdd, metaEmpty()));
 
 function shopSummary(orders){
   const net = orders.reduce((a, o) => a + o.net, 0);
+  const total = orders.reduce((a, o) => a + (o.total || 0), 0);
+  const gross = orders.reduce((a, o) => a + (o.gross || 0), 0);
+  const newOrders = orders.filter(o => o.is_new), retOrders = orders.filter(o => !o.is_new);
+  const newValue = newOrders.reduce((a, o) => a + o.net, 0), retValue = retOrders.reduce((a, o) => a + o.net, 0);
   // Clientes: un cliente es "nuevo" en el periodo si alguno de sus pedidos del periodo es su primer pedido histórico.
   // Los pedidos sin cliente (invitados) cuentan como un cliente nuevo cada uno.
   const customers = new Map();
@@ -442,12 +585,16 @@ function shopSummary(orders){
   });
   const all = [...customers.values()];
   const identified = all.filter(c => c.identified);
+  const newCustomers = all.filter(c => c.isNew).length, returningCustomers = all.filter(c => !c.isNew).length;
   return {
-    net, orders:orders.length, aov:div(net, orders.length),
+    net, total, gross, newValue, retValue,
+    newTicket:div(newValue, newOrders.length), retTicket:div(retValue, retOrders.length),
+    orders:orders.length, aov:div(net, orders.length),
     newCustomers:all.filter(c => c.isNew).length, returningCustomers:all.filter(c => !c.isNew).length,
     customers:all.length,
-    // Tasa de recompra: clientes identificados con 2+ pedidos en el periodo / clientes identificados del periodo.
-    repurchaseRate:div(identified.filter(c => c.orders >= 2).length, identified.length),
+    // % de recompra: clientes recurrentes ÷ (nuevos + recurrentes) del periodo.
+    repurchaseRate:div(returningCustomers, newCustomers + returningCustomers),
+    multiOrderRate:div(identified.filter(c => c.orders >= 2).length, identified.length),
     returningOrderShare:div(orders.filter(o => !o.is_new).length, orders.length),
   };
 }
@@ -481,57 +628,171 @@ function bucketKeys(range){ const mode = bucketMode(range), keys = []; for(let d
 /* ==========================================================================
    Pestaña: Resumen
    ========================================================================== */
+// Delta estilo reporte: "+$2,746 (+6.5%) vs. anterior"
+function kDelta(cur, prev, fmt, lowerIsBetter = false){
+  if(cur == null || prev == null || !isFinite(cur) || !isFinite(prev)) return '<span class="kd flat">Sin comparativo</span>';
+  const diff = cur - prev, p = prev ? diff / Math.abs(prev) * 100 : null;
+  const good = lowerIsBetter ? diff < 0 : diff > 0;
+  const cls = Math.abs(p ?? 0) < 0.5 && Math.abs(diff) < 1e-9 ? 'flat' : (good ? 'up' : 'down');
+  const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
+  const pTxt = p == null ? '' : ` (${p > 0 ? '+' : p < 0 ? '−' : ''}${fmt1.format(Math.abs(p))}%)`;
+  return `<span class="kd ${cls}">${sign}${fmt(Math.abs(diff))}${pTxt} vs. anterior</span>`;
+}
+const fmt1 = new Intl.NumberFormat('es-MX', { minimumFractionDigits:1, maximumFractionDigits:1 });
+const pct1 = v => v == null || !isFinite(v) ? '—' : `${new Intl.NumberFormat('es-MX', { minimumFractionDigits:1, maximumFractionDigits:1 }).format(v * 100)}%`;
+const x2 = v => v == null || !isFinite(v) ? '—' : `${fmtDec.format(v)}x`;
+
 function renderResumen(S, range){
   const prev = previousRange(range);
-  const ordersCur = S.orders ? inRange(S.orders, range) : null;
-  const ordersPrev = S.orders ? inRange(S.orders, prev) : null;
-  const sc = ordersCur ? shopSummary(ordersCur) : null, sp = ordersPrev ? shopSummary(ordersPrev) : null;
-
+  const oc = S.orders ? inRange(S.orders, range) : null, op = S.orders ? inRange(S.orders, prev) : null;
+  const sc = oc ? shopSummary(oc) : null, sp = op ? shopSummary(op) : null;
   const spendOf = (rows, r) => rows ? inRange(rows, r).reduce((a, x) => a + x.spend, 0) : 0;
-  const metaCur = spendOf(S.metaRows, range), metaPrev = spendOf(S.metaRows, prev);
-  const gCur = spendOf(S.googleRows, range), gPrev = spendOf(S.googleRows, prev);
-  const spendCur = metaCur + gCur, spendPrev = metaPrev + gPrev;   // suma de TODOS los canales conectados
-  const channels = [S.metaRows && 'Meta', S.googleRows && 'Google'].filter(Boolean);
+  const mC = spendOf(S.metaRows, range), mP = spendOf(S.metaRows, prev), gC = spendOf(S.googleRows, range), gP = spendOf(S.googleRows, prev);
+  const spC = mC + gC, spP = mP + gP;
 
   const msgs = [];
-  if(!S.orders) msgs.push('Shopify no respondió: ventas, pedidos, ROAS y CPA blended no se pueden calcular.');
-  if(!S.metaRows || !S.googleRows) msgs.push(`La inversión total solo incluye ${channels.length ? channels.join(' y ') : 'ningún canal'}, porque ${[!S.metaRows && 'Meta', !S.googleRows && 'Google'].filter(Boolean).join(' y ')} no respondió.`);
+  if(!S.orders) msgs.push(`Shopify no respondió: ventas, clientes, MER, ROAS y CAC no se pueden calcular. ${escapeHtml(S.errors.shopify || '')}`);
+  if(!S.metaRows || !S.googleRows) msgs.push(`El gasto total solo incluye ${[S.metaRows && 'Meta', S.googleRows && 'Google'].filter(Boolean).join(' y ') || 'ningún canal'}, porque ${[!S.metaRows && 'Meta', !S.googleRows && 'Google'].filter(Boolean).join(' y ')} no respondió.`);
   notice('resumenNotice', msgs.join('<br>'));
+  document.getElementById('kpiMeta').textContent = `${range.start} → ${range.end}`;
 
-  const roasC = sc ? div(sc.net, spendCur) : null, roasP = sp ? div(sp.net, spendPrev) : null;
-  const cpaC = sc ? div(spendCur, sc.orders) : null, cpaP = sp ? div(spendPrev, sp.orders) : null;
-  const cacC = sc ? div(spendCur, sc.newCustomers) : null;
-
-  kpiCards('kpisResumen', [
-    { label:'Ventas netas', value:money(sc?.net), delta:deltaPct(sc?.net, sp?.net), split:'Sin IVA ni envío, después de descuentos y devoluciones' },
-    { label:'Pedidos', value:int(sc?.orders), delta:deltaPct(sc?.orders, sp?.orders) },
-    { label:'Ticket promedio', value:money2(sc?.aov), delta:deltaPct(sc?.aov, sp?.aov) },
-    { label:'Clientes nuevos / recurrentes', value:sc ? `${int(sc.newCustomers)} / ${int(sc.returningCustomers)}` : '—', delta:deltaPct(sc?.newCustomers, sp?.newCustomers), split:sc ? `${pct(div(sc.newCustomers, sc.customers))} nuevos · la variación es de clientes nuevos` : '' },
-    { label:'Inversión total', value:money(spendCur), delta:deltaPct(spendCur, spendPrev), split:[S.metaRows && `Meta ${money(metaCur)}`, S.googleRows && `Google ${money(gCur)}`].filter(Boolean).join(' · ') },
-    { label:'ROAS blended', value:xRoas(roasC), delta:deltaPct(roasC, roasP), hero:true, split:'Ventas netas ÷ inversión total' },
-    { label:'CPA blended', value:money2(cpaC), delta:deltaPct(cpaC, cpaP), lower:true, split:`Inversión ÷ pedidos · por cliente nuevo ${money2(cacC)}` },
-  ]);
-
-  // Gráfica: barras de ventas netas + línea de inversión
-  const { keys, mode } = bucketKeys(range);
-  const sales = Object.fromEntries(keys.map(k => [k, 0])), spend = Object.fromEntries(keys.map(k => [k, 0]));
-  (ordersCur || []).forEach(o => { const k = bucketKey(o.date, mode); if(k in sales) sales[k] += o.net; });
-  [...(S.metaRows ? inRange(S.metaRows, range) : []), ...(S.googleRows ? inRange(S.googleRows, range) : [])].forEach(r => { const k = bucketKey(r.date, mode); if(k in spend) spend[k] += r.spend; });
-
-  // Si Shopify no respondió, no se dibujan barras ni su eje (evita un eje de ventas vacío con $0–$1).
-  const hasSales = !!ordersCur;
-  const font = { family:css('--font'), size:11 };
-  const datasets = [
-    // order bajo se dibuja encima: línea 0, barras 1
-    { type:'line', label:'Inversión total', yAxisID:hasSales ? 'y1' : 'y', data:keys.map(k => spend[k]), borderColor:css('--c-inversion'), backgroundColor:css('--c-inversion'), borderWidth:2.5, pointRadius:keys.length > 40 ? 0 : 3, tension:.3, order:0 },
+  // ---- KPIs (10)
+  const K = (label, c, p, fmt, opts = {}) => ({ label, value:fmt(c), delta:kDelta(c, p, fmt, opts.lower), hero:opts.hero });
+  const items = [
+    K('Gasto total (Meta + Google)', spC, spP, money),
+    K('Ventas totales (Shopify)', sc?.total, sp?.total, money),
+    K('Ventas netas', sc?.net, sp?.net, money),
+    K('Clientes nuevos', sc?.newCustomers, sp?.newCustomers, int),
+    K('Valor de compras (clientes nuevos)', sc?.newValue, sp?.newValue, money),
+    K('Ticket promedio (clientes nuevos)', sc?.newTicket, sp?.newTicket, money),
+    K('MER', sc ? div(sc.total, spC) : null, sp ? div(sp.total, spP) : null, x2),
+    K('ROAS blended', sc ? div(sc.net, spC) : null, sp ? div(sp.net, spP) : null, x2, { hero:true }),
+    K('CAC blended', sc ? div(spC, sc.newCustomers) : null, sp ? div(spP, sp.newCustomers) : null, money, { lower:true }),
+    K('Pedidos totales', sc?.orders, sp?.orders, int),
   ];
-  if(hasSales) datasets.push({ type:'bar', label:'Ventas netas', yAxisID:'y', data:keys.map(k => sales[k]), backgroundColor:css('--c-ventas'), borderRadius:3, order:1 });
-  const opts = baseChartOptions(v => money(v));
-  opts.scales.y.title = { display:true, text:hasSales ? 'Ventas netas' : 'Inversión', font };
-  if(hasSales) opts.scales.y1 = { position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Inversión', font }, ticks:{ font, callback:v => money(v) } };
+  document.getElementById('kpisResumen').innerHTML = items.map(k => `
+    <div class="kcell${k.hero ? ' hero' : ''}"><div class="klabel">${k.label}</div><div class="kvalue">${k.value}</div>${k.delta}</div>`).join('');
 
-  charts.resumen?.destroy();
-  charts.resumen = new Chart(document.getElementById('chartResumen'), { data:{ labels:keys.map(k => bucketLabel(k, mode)), datasets }, options:opts });
+  renderMensual(S.monthly);
+  renderCruce(S, range, sc, mC, gC);
+  renderAdqRet(sc, sp, spC, spP);
+  renderTopEstados(S, oc, op, range);
+  renderTopProductos(oc, op, range);
+  renderFunnelResumen(S, sc);
+}
+
+// ---- Desglose mensual Ene → hoy
+function renderMensual(M){
+  const t = todayStr(), y = +t.slice(0, 4), lastM = +t.slice(5, 7);
+  const months = Array.from({ length:lastM }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
+  const ok = M && (M.shopify || M.meta || M.google);
+  const missing = M ? [!M.shopify && 'Shopify', !M.meta && 'Meta', !M.google && 'Google'].filter(Boolean) : ['todas las fuentes'];
+  notice('mensualNotice', missing.length ? `Sin datos mensuales de ${missing.join(', ')}; la gráfica está incompleta.` : '');
+  document.getElementById('mensualTitle').textContent = `Desglose mensual (Ene ${y} → hoy)`;
+  if(!ok){ charts.mensual?.destroy(); return; }
+
+  const spend = Object.fromEntries(months.map(m => [m, 0]));
+  [...(M.meta || []), ...(M.google || [])].forEach(r => { if(r.month in spend) spend[r.month] += +r.spend || 0; });
+  const shop = Object.fromEntries((M.shopify || []).map(r => [r.month, r]));
+  const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const font = { family:css('--font'), size:11 };
+
+  charts.mensual?.destroy();
+  charts.mensual = new Chart(document.getElementById('chartMensual'), {
+    data:{ labels:months.map(m => MES[+m.slice(5) - 1]), datasets:[
+      { type:'line', label:'Pedidos', yAxisID:'y1', data:months.map(m => M.shopify ? (shop[m]?.orders || 0) : null), borderColor:css('--naranja'), backgroundColor:css('--naranja'), borderWidth:2.5, pointRadius:3, cubicInterpolationMode:'monotone', order:0 },
+      { type:'bar', label:'Gasto total', data:months.map(m => spend[m]), backgroundColor:css('--acero'), borderRadius:2, order:1 },
+      { type:'bar', label:'Ventas netas (Shopify)', data:months.map(m => M.shopify ? (shop[m]?.net || 0) : null), backgroundColor:css('--marino'), borderRadius:2, order:1 },
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ position:'top', align:'end', labels:{ font, usePointStyle:true, boxWidth:8 } },
+        tooltip:{ callbacks:{ label:c => c.dataset.yAxisID === 'y1' ? ` Pedidos: ${int(c.parsed.y)}` : ` ${c.dataset.label}: ${money(c.parsed.y)}` } } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ font } },
+        y:{ beginAtZero:true, grid:{ color:css('--borde') }, ticks:{ font, callback:v => money(v) } },
+        y1:{ position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Pedidos', font }, ticks:{ font, precision:0 } } },
+    },
+  });
+}
+
+// ---- Plataformas vs. Shopify
+function renderCruce(S, range, sc, mC, gC){
+  const net = sc?.net;
+  const varPct = v => net ? `${v - net >= 0 ? '+' : '−'}${pct1(Math.abs(v - net) / net)}` : '—';
+  const rows = [];
+  if(S.metaRows){ const m = metaSum(inRange(S.metaRows, range)); rows.push(['Meta Ads', money(mC), money(m.value), x2(m.roas), varPct(m.value)]); }
+  else rows.push(['Meta Ads', '—', '—', '—', 'Sin datos']);
+  if(S.googleRows){
+    const cur = inRange(S.googleRows, range), g = gSum(cur);
+    const types = [...new Set(cur.filter(r => r.spend > 0).map(r => r.channel))];
+    rows.push([`Google Ads${types.length ? ` (${types.join(', ')})` : ''}`, money(gC), money(g.value), x2(g.roas), varPct(g.value)]);
+  } else rows.push(['Google Ads', '—', '—', '—', 'Sin datos']);
+  const shopRows = sc ? [['Shopify — Ventas brutas', sc.gross], ['Shopify — Ventas netas', sc.net], ['Shopify — Ventas totales', sc.total]] : [];
+  document.getElementById('tblCruce').innerHTML = `
+    <thead><tr><th>Plataforma</th><th>Gasto</th><th>Ventas reportadas</th><th>ROAS reportado</th><th>% var. vs. Shopify (netas)</th></tr></thead>
+    <tbody>
+      ${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td class="var">${r[4]}</td></tr>`).join('')}
+      ${shopRows.map(r => `<tr class="shop"><td>${r[0]}</td><td>—</td><td>${money(r[1])}</td><td>—</td><td>—</td></tr>`).join('')}
+      ${sc ? '' : '<tr class="shop"><td>Shopify</td><td colspan="4">Sin datos de Shopify</td></tr>'}
+    </tbody>`;
+}
+
+// ---- Adquisición vs. Retención
+function renderAdqRet(sc, sp, spC, spP){
+  const M = (label, c, p, fmt, lower) => `<div class="metric"><div class="mlabel">${label}</div><div class="mvalue">${fmt(c)}</div>${kDelta(c, p, fmt, lower)}</div>`;
+  document.getElementById('adqRet').innerHTML = `
+    <div class="adq"><div class="eyebrow" style="margin-bottom:.4rem">Adquisición</div>
+      ${M('Clientes nuevos', sc?.newCustomers, sp?.newCustomers, int)}
+      ${M('CAC blended', sc ? div(spC, sc.newCustomers) : null, sp ? div(spP, sp.newCustomers) : null, money, true)}
+      ${M('Ticket promedio (nuevos)', sc?.newTicket, sp?.newTicket, money)}
+    </div>
+    <div class="ret"><div class="eyebrow" style="margin-bottom:.4rem">Retención</div>
+      ${M('Clientes recurrentes', sc?.returningCustomers, sp?.returningCustomers, int)}
+      ${M('% de recompra', sc?.repurchaseRate, sp?.repurchaseRate, pct1)}
+      ${M('Ticket promedio (recurrentes)', sc?.retTicket, sp?.retTicket, money)}
+    </div>`;
+}
+
+// ---- Rankings (Top estados / Top productos)
+function rangeTitle(range){ const f = s => { const d = parseLocalDate(s); return `${d.getDate()} de ${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][d.getMonth()]} de ${d.getFullYear()}`; }; return `${f(range.start)} → ${f(range.end)}`; }
+function rankList(el, range, list, unit){
+  document.getElementById(el).innerHTML = `<div class="rank-range">${rangeTitle(range)}</div>` + (list.length ? list.map((r, i) => `
+    <div class="rank"><span class="n">${String(i + 1).padStart(2, '0')}</span><span class="name">${escapeHtml(r.name)}</span><span class="amt">${money(r.net)}</span>
+      <span class="sub2">${int(r.count)} ${unit}</span>${kDelta(r.net, r.prev, money)}</div>`).join('') : '<p class="empty">Sin ventas en este periodo.</p>');
+}
+function renderTopEstados(S, oc, op, range){
+  if(!oc){ document.getElementById('topEstados').innerHTML = '<p class="empty">Sin datos de Shopify.</p>'; return; }
+  if(S.geo === false){ document.getElementById('topEstados').innerHTML = '<p class="empty">Shopify no dio acceso al estado de envío de los pedidos. Hay que aprobar el acceso a la dirección en los datos protegidos de cliente de la app.</p>'; return; }
+  const agg = (orders) => { const m = new Map(); orders.forEach(o => { const k = o.province || 'Sin estado'; const a = m.get(k) || { name:k, net:0, count:0 }; a.net += o.net; a.count++; m.set(k, a); }); return m; };
+  const c = agg(oc), p = agg(op);
+  rankList('topEstados', range, [...c.values()].sort((a, b) => b.net - a.net).slice(0, 5).map(r => ({ ...r, prev:p.get(r.name)?.net ?? 0 })), 'pedidos');
+}
+function renderTopProductos(oc, op, range){
+  if(!oc){ document.getElementById('topProductos').innerHTML = '<p class="empty">Sin datos de Shopify.</p>'; return; }
+  const agg = (orders) => { const m = new Map(); orders.forEach(o => o.items.forEach(it => { const a = m.get(it.product_id) || { name:it.title, net:0, count:0 }; a.net += it.net; a.count += it.qty; m.set(it.product_id, a); })); return m; };
+  const c = agg(oc), p = agg(op);
+  rankList('topProductos', range, [...c.entries()].sort((a, b) => b[1].net - a[1].net).slice(0, 5).map(([id, r]) => ({ ...r, prev:p.get(id)?.net ?? 0 })), 'unidades');
+}
+
+// ---- Funnel Visitas → Compras
+function renderFunnelResumen(S, sc){
+  const ga = S.ga4, ab = S.checkouts?.abandoned;
+  const orders = sc ? sc.orders : null;
+  const checkout = ab && ab.count != null && orders != null ? ab.count + orders : (ga ? ga.events?.begin_checkout : null);
+  const checkoutSrc = ab && ab.count != null ? 'Shopify' : 'GA4';
+  const steps = [
+    { label:'Visitas a la página (GA4)', v:ga ? ga.sessions : null, pending:'Pendiente: conectar GA4' },
+    { label:'Añadido al carrito (GA4)', v:ga ? ga.events?.add_to_cart : null, pending:'Pendiente: conectar GA4' },
+    { label:`Checkout iniciado (${checkoutSrc})`, v:checkout, pending:'Sin datos' },
+    { label:'Compras (Shopify)', v:orders, pending:'Sin datos de Shopify' },
+  ];
+  const max = Math.max(...steps.map(s => s.v || 0), 1);
+  document.getElementById('funnelResumen').innerHTML = steps.map((st, i) => {
+    const prevV = i ? steps[i - 1].v : null;
+    const rate = i && st.v != null && prevV ? `<small>${pct1(st.v / prevV)} vs. anterior</small>` : '';
+    return `<div class="fun-row"><div class="fun-top"><span>${st.label}</span><span>${st.v == null ? `<small>${st.pending}</small>` : `<b>${int(st.v)}</b>${rate}`}</span></div>
+      <div class="fun-bar"><i style="width:${st.v == null ? 0 : Math.max(0.5, st.v / max * 100)}%"></i></div></div>`;
+  }).join('') + (checkoutSrc === 'Shopify' ? '<p class="note">Checkout iniciado = checkouts abandonados + pedidos del periodo. Incluye pedidos que no pasan por el checkout (por ejemplo, renovaciones de suscripción).</p>' : '');
 }
 
 function baseChartOptions(fmt){
@@ -625,6 +886,78 @@ function applyCampaignFilter(){
 }
 ['fObjetivo','fEtiqueta'].forEach(id => document.getElementById(id).addEventListener('change', applyCampaignFilter));
 document.getElementById('fCampana').addEventListener('input', applyCampaignFilter);
+
+/* ==========================================================================
+   Pestaña: Google Ads
+   ========================================================================== */
+const tblGTipos = createTable({ tableId:'tblGTipos', columns:[
+  { key:'channel', label:'Tipo' },
+  { key:'campaigns', label:'Campañas', f:int },
+  { key:'spend', label:'Inversión', f:money },
+  { key:'share', label:'% inversión', f:pct },
+  { key:'purchases', label:'Conversiones', f:v => fmtDec.format(v) },
+  { key:'value', label:'Valor', f:money },
+  { key:'roas', label:'ROAS', f:xRoas },
+], sortKey:'spend', pageSize:50 });
+
+const tblGCampanas = createTable({ tableId:'tblGCampanas', pagerId:'pgGCampanas', noun:'campañas', columns:[
+  { key:'campaign', label:'Campaña' },
+  { key:'channel', label:'Tipo', align:'left', f:v => `<span class="chip">${escapeHtml(v)}</span>` },
+  { key:'status', label:'Estado', align:'left', f:v => escapeHtml(v) },
+  { key:'spend', label:'Inversión', f:money },
+  { key:'impressions', label:'Impresiones', f:int },
+  { key:'clicks', label:'Clics', f:int },
+  { key:'ctr', label:'CTR', f:pct },
+  { key:'cpc', label:'CPC', f:money2 },
+  { key:'purchases', label:'Conversiones', f:v => fmtDec.format(v) },
+  { key:'value', label:'Valor', f:money },
+  { key:'roas', label:'ROAS', f:xRoas },
+  { key:'cpa', label:'Costo por conv.', f:money2 },
+], sortKey:'spend', totalRow:list => ({ ...gSum(list), channel:undefined, status:undefined }), emptyText:'No hay campañas con actividad en este periodo.' });
+
+function renderGoogle(S, range){
+  if(!S.googleRows){
+    notice('googleNotice', `Google Ads no respondió: ${escapeHtml(S.errors.google || '')}`);
+    kpiCards('kpisGoogle', []); tblGTipos.setRows([]); tblGCampanas.setRows([]); charts.google?.destroy(); return;
+  }
+  notice('googleNotice', '');
+  const cur = inRange(S.googleRows, range), prev = inRange(S.googleRows, previousRange(range));
+  const c = gSum(cur), p = gSum(prev);
+  kpiCards('kpisGoogle', [
+    { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend) },
+    { label:'Impresiones', value:int(c.impressions), delta:deltaPct(c.impressions, p.impressions) },
+    { label:'Clics', value:int(c.clicks), delta:deltaPct(c.clicks, p.clicks) },
+    { label:'CTR', value:pct(c.ctr), delta:deltaPct(c.ctr, p.ctr) },
+    { label:'CPC', value:money2(c.cpc), delta:deltaPct(c.cpc, p.cpc), lower:true },
+    { label:'Conversiones', value:fmtDec.format(c.purchases), delta:deltaPct(c.purchases, p.purchases), split:'Reportadas por Google Ads' },
+    { label:'Valor de conversión', value:money(c.value), delta:deltaPct(c.value, p.value) },
+    { label:'ROAS (Google)', value:xRoas(c.roas), delta:deltaPct(c.roas, p.roas), hero:true, split:'Valor de conversión ÷ inversión' },
+  ]);
+
+  // Gráfica diaria
+  const { keys, mode } = bucketKeys(range);
+  const sp = Object.fromEntries(keys.map(k => [k, 0])), cv = Object.fromEntries(keys.map(k => [k, 0]));
+  cur.forEach(r => { const k = bucketKey(r.date, mode); if(k in sp){ sp[k] += r.spend; cv[k] += r.purchases; } });
+  const font = { family:css('--font'), size:11 };
+  const opts = baseChartOptions(v => money(v));
+  opts.plugins.tooltip.callbacks.label = c2 => c2.dataset.yAxisID === 'y1' ? ` Conversiones: ${fmtDec.format(c2.parsed.y)}` : ` Inversión: ${money(c2.parsed.y)}`;
+  opts.scales.y1 = { position:'right', beginAtZero:true, grid:{ display:false }, ticks:{ font } };
+  charts.google?.destroy();
+  charts.google = new Chart(document.getElementById('chartGoogle'), { data:{ labels:keys.map(k => bucketLabel(k, mode)), datasets:[
+    { type:'line', label:'Conversiones', yAxisID:'y1', data:keys.map(k => cv[k]), borderColor:css('--naranja'), backgroundColor:css('--naranja'), borderWidth:2.5, pointRadius:keys.length > 40 ? 0 : 3, cubicInterpolationMode:'monotone', order:0 },
+    { type:'bar', label:'Inversión', yAxisID:'y', data:keys.map(k => sp[k]), backgroundColor:css('--acero'), borderRadius:3, order:1 },
+  ]}, options:opts });
+
+  // Campañas y tipos
+  const byCamp = new Map();
+  cur.forEach(r => { if(!byCamp.has(r.campaign_id)) byCamp.set(r.campaign_id, { campaign:r.campaign, channel:r.channel, status:r.status, ...gEmpty() }); gAdd(byCamp.get(r.campaign_id), r); });
+  const camps = [...byCamp.values()].map(gDerive);
+  const byType = new Map();
+  camps.forEach(x => { const t = byType.get(x.channel) || { channel:x.channel, campaigns:0, ...gEmpty() }; t.campaigns++; gAdd(t, x); byType.set(x.channel, t); });
+  tblGTipos.setRows([...byType.values()].map(t => ({ ...gDerive(t), share:div(t.spend, c.spend) })));
+  tblGCampanas.setRows(camps);
+}
+document.getElementById('fGCampana').addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); tblGCampanas.setFilter(x => !q || x.campaign.toLowerCase().includes(q)); });
 
 /* ==========================================================================
    Pestaña: Audiencias
@@ -759,7 +1092,7 @@ function renderProductos(S, range){
   kpiCards('kpisProductos', [
     { label:'Unidades vendidas', value:int(units), delta:deltaPct(units, prevUnits) },
     { label:'Productos distintos vendidos', value:int(list.length) },
-    { label:'Tasa de recompra', value:pct(sc.repurchaseRate), delta:deltaPct(sc.repurchaseRate, sp.repurchaseRate), split:'Clientes con 2 o más pedidos en el periodo' },
+    { label:'% de recompra', value:pct(sc.repurchaseRate), delta:deltaPct(sc.repurchaseRate, sp.repurchaseRate), split:'Clientes recurrentes ÷ clientes del periodo' },
     { label:'Pedidos de clientes recurrentes', value:pct(sc.returningOrderShare), delta:deltaPct(sc.returningOrderShare, sp.returningOrderShare), split:'Pedidos que no son el primero del cliente' },
   ]);
   tblProductos.setRows(list);
@@ -778,7 +1111,7 @@ document.getElementById('fProducto').addEventListener('input', e => { const q = 
    Estado de las fuentes
    ========================================================================== */
 function renderStatus(status, errors){
-  const names = { shopify:'Shopify', meta:'Meta Ads', google:'Google Ads', audiences:'Audiencias Meta' };
+  const names = { shopify:'Shopify', meta:'Meta Ads', google:'Google Ads', audiences:'Audiencias Meta', ga4:'GA4' };
   const pills = Object.keys(names).map(k => status[k] === 'ok'
     ? `<span class="pill ok">🟢 ${names[k]}</span>`
     : `<span class="pill err" title="${escapeHtml(errors[k] || 'Sin respuesta')}">⚠️ ${names[k]}</span>`);
@@ -803,9 +1136,13 @@ async function refresh(){
   const d = await loadAll(range);
   if(seq !== loadSeq) return;   // llegó una respuesta vieja después de cambiar el rango
 
-  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, errors:d.errors };
+  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
   STATE = {
     orders: d.shopify ? d.shopify.orders : null,
+    geo: d.shopify ? d.shopify.geo : null,
+    ga4: d.ga4 || null,
+    checkouts: d.checkouts || null,
+    monthly: d.monthly || null,
     metaRows: d.meta ? normMeta(d.meta.rows || []) : null,
     googleRows: d.google ? normGoogle(d.google.rows || []) : null,
     audRows: d.audiences ? d.audiences.rows : null,
@@ -818,6 +1155,7 @@ async function refresh(){
   renderStatus(d.status, d.errors);
   renderResumen(STATE, range);
   renderMeta(STATE, range);
+  renderGoogle(STATE, range);
   renderAudiencias(STATE);
   renderProductos(STATE, range);
   document.getElementById('footerInfo').textContent = `Tiba Salud · actualizado ${new Date().toLocaleString('es-MX', { timeZone:TZ, dateStyle:'medium', timeStyle:'short' })}`;
@@ -872,21 +1210,35 @@ function demoData(since, until, range){
       const pur = obj === 'OUTCOME_SALES' ? Math.round(ic * (0.08 + rnd() * 0.06)) : 0;
       metaRows.push({ date:d, campaign_id:id, campaign:name, objective:obj, spend, impressions:imp, link_clicks:clicks, add_to_cart:atc, checkouts:ic, purchases:pur, purchase_value:pur * (700 + rnd() * 600) });
     });
-    googleRows.push({ date:d, spend:Math.round(2200 + rnd() * 1600) });
+    [['g1','.GADS - Search - Brand','SEARCH',0.35],['g2','PMax - Catálogo','PERFORMANCE_MAX',0.65]].forEach(([id, name, ch, w]) => {
+      const spend = Math.round((2200 + rnd() * 1600) * w), imp = Math.round(spend * (6 + rnd() * 8)), clicks = Math.round(imp * (0.04 + rnd() * 0.05));
+      const conv = Math.round(clicks * (0.02 + rnd() * 0.03) * 10) / 10;
+      googleRows.push({ date:d, campaign_id:id, campaign:name, status:'Activa', channel_type:ch, spend, impressions:imp, clicks, purchases:conv, purchase_value:conv * (900 + rnd() * 500) });
+    });
     const n = Math.round(18 + rnd() * 14);
     for(let i = 0; i < n; i++){
       const cust = `c${Math.floor(rnd() * 900)}`;
       const isNew = !seenCustomers.has(cust) && rnd() > 0.35; seenCustomers.add(cust);
       const items = []; const k = 1 + Math.floor(rnd() * 3);
       for(let j = 0; j < k; j++){ const p = products[Math.floor(Math.pow(rnd(), 1.6) * products.length)]; const qty = 1 + Math.floor(rnd() * 2); items.push({ product_id:p[0], title:p[1], type:p[2], vendor:'Tiba Salud', qty, net:p[3] * qty / 1.16 }); }
-      orders.push({ id:`o${orderId++}`, date:d, customer_id:rnd() > 0.06 ? cust : null, is_new:isNew, net:items.reduce((a, it) => a + it.net, 0), items });
+      const net = items.reduce((a, it) => a + it.net, 0);
+      const province = ['Nuevo León','Ciudad de México','Jalisco','Estado de México','Veracruz','Querétaro','Puebla','Yucatán'][Math.floor(Math.pow(rnd(), 1.4) * 8)];
+      orders.push({ id:`o${orderId++}`, date:d, customer_id:rnd() > 0.06 ? cust : null, is_new:isNew, province, net, gross:net * (1.04 + rnd() * 0.05), total:net * 1.16 + (net > 860 ? 0 : 99), items });
     }
   }
   const audRows = [];
   const aud = { age:['18-24','25-34','35-44','45-54','55-64','65+'], gender:['female','male','unknown'], device_platform:['mobile_app','mobile_web','desktop'], publisher_platform:['instagram','facebook','audience_network','messenger','threads'] };
   const weights = { age:[.08,.24,.31,.22,.11,.04], gender:[.68,.29,.03], device_platform:[.82,.12,.06], publisher_platform:[.58,.33,.05,.03,.01] };
   for(const b in aud) aud[b].forEach((k, i) => { const w = weights[b][i]; audRows.push({ breakdown:b, key:k, spend:180000 * w, impressions:9e6 * w * (0.9 + rnd() * 0.2), purchases:Math.round(600 * w * (0.8 + rnd() * 0.4)) }); });
-  return { shopify:{ orders }, meta:{ rows:metaRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok' }, errors:{} };
+  // Mensual Ene → hoy
+  const t = todayStr(), y = t.slice(0, 4), months = [];
+  for(let m = 1; m <= +t.slice(5, 7); m++){ const k = `${y}-${String(m).padStart(2, '0')}`; const f = m === 5 ? 1.9 : 1; months.push({ month:k, orders:Math.round((380 + rnd() * 160) * f), net:Math.round((420000 + rnd() * 160000) * f) }); }
+  const monthly = { shopify:months, meta:months.map(m => ({ month:m.month, spend:60000 + rnd() * 30000 })), google:months.map(m => ({ month:m.month, spend:15000 + rnd() * 9000 })), errors:{} };
+  const curOrders = orders.filter(o => o.date >= range.start && o.date <= range.end).length;
+  const ga4 = { sessions:Math.round(curOrders * 40), events:{ add_to_cart:Math.round(curOrders * 6.4), begin_checkout:Math.round(curOrders * 1.6), purchase:curOrders } };
+  const checkouts = { abandoned:{ count:Math.round(curOrders * 0.55), precision:'EXACT' } };
+  return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
+    status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
 }
 
 loadShopInfo().then(refresh);
