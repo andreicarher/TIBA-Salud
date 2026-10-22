@@ -602,10 +602,10 @@ function shopSummary(orders){
 /* ==========================================================================
    Componentes de render
    ========================================================================== */
-function deltaHtml(d, lowerIsBetter = false){
+function deltaHtml(d, lowerIsBetter = false, neutral = false){
   if(d == null || !isFinite(d)) return '<span class="delta flat">Sin comparativo</span>';
   const good = lowerIsBetter ? d < 0 : d > 0;
-  const cls = Math.abs(d) < 0.5 ? 'flat' : (good ? 'up' : 'down');
+  const cls = neutral || Math.abs(d) < 0.5 ? 'flat' : (good ? 'up' : 'down');
   return `<span class="delta ${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : ''} ${fmtDec.format(Math.abs(d))}% vs periodo anterior</span>`;
 }
 function kpiCards(el, items){
@@ -613,7 +613,7 @@ function kpiCards(el, items){
     <div class="card kpi${k.hero ? ' hero' : ''}">
       <div class="label">${k.label}</div>
       <div class="value">${k.value}</div>
-      ${k.delta === undefined ? '' : deltaHtml(k.delta, k.lower)}
+      ${k.delta === undefined ? '' : deltaHtml(k.delta, k.lower, k.neutral)}
       ${k.split ? `<div class="split">${k.split}</div>` : ''}
     </div>`).join('');
 }
@@ -629,11 +629,11 @@ function bucketKeys(range){ const mode = bucketMode(range), keys = []; for(let d
    Pestaña: Resumen
    ========================================================================== */
 // Delta estilo reporte: "+$2,746 (+6.5%) vs. anterior"
-function kDelta(cur, prev, fmt, lowerIsBetter = false){
+function kDelta(cur, prev, fmt, lowerIsBetter = false, neutral = false){
   if(cur == null || prev == null || !isFinite(cur) || !isFinite(prev)) return '<span class="kd flat">Sin comparativo</span>';
   const diff = cur - prev, p = prev ? diff / Math.abs(prev) * 100 : null;
   const good = lowerIsBetter ? diff < 0 : diff > 0;
-  const cls = Math.abs(p ?? 0) < 0.5 && Math.abs(diff) < 1e-9 ? 'flat' : (good ? 'up' : 'down');
+  const cls = neutral || (Math.abs(p ?? 0) < 0.5 && Math.abs(diff) < 1e-9) ? 'flat' : (good ? 'up' : 'down');
   const sign = diff > 0 ? '+' : diff < 0 ? '−' : '';
   const pTxt = p == null ? '' : ` (${p > 0 ? '+' : p < 0 ? '−' : ''}${fmt1.format(Math.abs(p))}%)`;
   return `<span class="kd ${cls}">${sign}${fmt(Math.abs(diff))}${pTxt} vs. anterior</span>`;
@@ -657,9 +657,9 @@ function renderResumen(S, range){
   document.getElementById('kpiMeta').textContent = `${range.start} → ${range.end}`;
 
   // ---- KPIs (10)
-  const K = (label, c, p, fmt, opts = {}) => ({ label, value:fmt(c), delta:kDelta(c, p, fmt, opts.lower), hero:opts.hero });
+  const K = (label, c, p, fmt, opts = {}) => ({ label, value:fmt(c), delta:kDelta(c, p, fmt, opts.lower, opts.neutral), hero:opts.hero });
   const items = [
-    K('Gasto total (Meta + Google)', spC, spP, money),
+    K('Gasto total (Meta + Google)', spC, spP, money, { neutral:true }),
     K('Ventas totales (Shopify)', sc?.total, sp?.total, money),
     K('Ventas netas', sc?.net, sp?.net, money),
     K('Clientes nuevos', sc?.newCustomers, sp?.newCustomers, int),
@@ -763,7 +763,7 @@ function rankList(el, range, list, unit){
 function renderTopEstados(S, oc, op, range){
   if(!oc){ document.getElementById('topEstados').innerHTML = '<p class="empty">Sin datos de Shopify.</p>'; return; }
   if(S.geo === false){ document.getElementById('topEstados').innerHTML = '<p class="empty">Shopify no dio acceso al estado de envío de los pedidos. Hay que aprobar el acceso a la dirección en los datos protegidos de cliente de la app.</p>'; return; }
-  const agg = (orders) => { const m = new Map(); orders.forEach(o => { const k = o.province || 'Sin estado'; const a = m.get(k) || { name:k, net:0, count:0 }; a.net += o.net; a.count++; m.set(k, a); }); return m; };
+  const agg = (orders) => { const m = new Map(); orders.forEach(o => { const k = o.province === 'México' || o.province === 'Mexico' ? 'Estado de México' : (o.province || 'Sin estado'); const a = m.get(k) || { name:k, net:0, count:0 }; a.net += o.net; a.count++; m.set(k, a); }); return m; };
   const c = agg(oc), p = agg(op);
   rankList('topEstados', range, [...c.values()].sort((a, b) => b.net - a.net).slice(0, 5).map(r => ({ ...r, prev:p.get(r.name)?.net ?? 0 })), 'pedidos');
 }
@@ -838,7 +838,7 @@ function renderMeta(S, range){
   const cur = inRange(S.metaRows, range), prev = inRange(S.metaRows, previousRange(range));
   const c = metaSum(cur), p = metaSum(prev);
   kpiCards('kpisMeta', [
-    { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend) },
+    { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend), neutral:true },
     { label:'Impresiones', value:int(c.impressions), delta:deltaPct(c.impressions, p.impressions) },
     { label:'CTR', value:pct(c.ctr), delta:deltaPct(c.ctr, p.ctr), split:'Clics en el enlace ÷ impresiones' },
     { label:'CPC', value:money2(c.cpc), delta:deltaPct(c.cpc, p.cpc), lower:true },
@@ -924,7 +924,7 @@ function renderGoogle(S, range){
   const cur = inRange(S.googleRows, range), prev = inRange(S.googleRows, previousRange(range));
   const c = gSum(cur), p = gSum(prev);
   kpiCards('kpisGoogle', [
-    { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend) },
+    { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend), neutral:true },
     { label:'Impresiones', value:int(c.impressions), delta:deltaPct(c.impressions, p.impressions) },
     { label:'Clics', value:int(c.clicks), delta:deltaPct(c.clicks, p.clicks) },
     { label:'CTR', value:pct(c.ctr), delta:deltaPct(c.ctr, p.ctr) },
