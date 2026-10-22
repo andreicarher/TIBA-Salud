@@ -1,5 +1,6 @@
 // GET /api/meta-ads?since=YYYY-MM-DD&until=YYYY-MM-DD[&refresh=1]
 //   → filas diarias por campaña (con objective), sin agregar.
+// GET /api/meta-ads?view=monthly&since=...&until=...   → inversión por mes
 // GET /api/meta-ads?view=audiences&since=...&until=...
 //   → totales del rango por edad, género, dispositivo y plataforma.
 //
@@ -103,6 +104,24 @@ async function fetchAccount(accountId, since, until, token) {
   };
 }
 
+// Desglose mensual a nivel cuenta (para la gráfica Ene → hoy del Resumen).
+async function fetchMonthly(since, until, token) {
+  const rows = [];
+  for (const id of accountIds()) {
+    const params = new URLSearchParams({
+      level: "account", time_increment: "monthly", time_range: JSON.stringify({ since, until }),
+      fields: "spend,actions,action_values", use_unified_attribution_setting: "true", limit: "100", access_token: token,
+    });
+    let url = `${BASE}/${id}/insights?${params}`;
+    while (url) {
+      const json = await metaGet(url);
+      for (const r of json.data || []) rows.push({ month: r.date_start.slice(0, 7), account_id: id, spend: num(r.spend), purchases: pickAction(r.actions, ACTION_PRIORITY.purchases), purchase_value: pickAction(r.action_values, ACTION_PRIORITY.purchases) });
+      url = json.paging?.next || null;
+    }
+  }
+  return { source: "meta", view: "monthly", since, until, rows, fetchedAt: new Date().toISOString() };
+}
+
 // Audiencias: una llamada por breakdown, a nivel cuenta, totales del rango.
 const BREAKDOWNS = ["age", "gender", "device_platform", "publisher_platform"];
 
@@ -150,10 +169,14 @@ export default async function handler(req, res) {
     const token = process.env.META_ACCESS_TOKEN;
     if (!token) throw new Error("Falta META_ACCESS_TOKEN en las variables de entorno");
     const { since, until } = readRange(req.query);
-    const view = req.query.view === "audiences" ? "audiences" : "campaigns";
+    const view = ["audiences", "monthly"].includes(req.query.view) ? req.query.view : "campaigns";
     const key = `${view}_${since}_${until}`;
 
     let data = req.query.refresh === "1" ? null : cache.get(key);
+    if (!data && view === "monthly") {
+      data = await fetchMonthly(since, until, token);
+      cache.set(key, data);
+    }
     if (!data && view === "audiences") {
       data = await fetchAudiences(since, until, token);
       cache.set(key, data);
