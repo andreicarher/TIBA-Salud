@@ -132,9 +132,10 @@ function mapOrder(o, info) {
       const tax = (li.taxLines || []).reduce((a, t) => a + money(t.priceSet), 0) * (li.quantity ? qty / li.quantity : 0);
       return {
         product_id: li.product?.id || `sin-producto:${li.title}`,
-        title: li.product?.title || li.title,
-        type: li.product?.productType || "",
-        vendor: li.product?.vendor || "",
+        title: (li.product?.title || li.title || "").trim(),
+        // trim: en la tienda hay proveedores "Tiba Salud" y "Tiba Salud " (con espacio)
+        type: (li.product?.productType || "").trim(),
+        vendor: (li.product?.vendor || "").trim(),
         qty,
         net: Math.max(0, info.taxesIncluded ? gross - tax : gross),
       };
