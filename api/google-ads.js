@@ -1,4 +1,5 @@
 // GET /api/google-ads?since=YYYY-MM-DD&until=YYYY-MM-DD[&refresh=1]
+// GET /api/google-ads?view=monthly&since=...&until=...   → inversión por mes
 //
 // Google Ads API por REST (sin SDK). Filas diarias por campaña, sin agregar.
 //
@@ -28,14 +29,21 @@ async function getAccessToken() {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: process.env.GOOGLE_ADS_CLIENT_ID,
-      client_secret: process.env.GOOGLE_ADS_CLIENT_SECRET,
-      refresh_token: process.env.GOOGLE_ADS_REFRESH_TOKEN,
+      client_id: (process.env.GOOGLE_ADS_CLIENT_ID || "").trim(),
+      client_secret: (process.env.GOOGLE_ADS_CLIENT_SECRET || "").trim(),
+      refresh_token: (process.env.GOOGLE_ADS_REFRESH_TOKEN || "").trim(),
       grant_type: "refresh_token",
     }),
   });
   const json = await res.json();
-  if (!res.ok) throw new Error(`Fallo al refrescar el token OAuth: ${json.error_description || json.error || JSON.stringify(json)}`);
+  if (!res.ok) {
+    const hints = {
+      invalid_grant: "el refresh token no es válido para este Client ID (mal copiado, de otro cliente OAuth, revocado o caducado)",
+      invalid_client: "el Client ID o el Client Secret no son correctos o no corresponden entre sí",
+      unauthorized_client: "el refresh token se generó con otro Client ID",
+    };
+    throw new Error(`Fallo al refrescar el token OAuth: ${json.error || "error"} — ${json.error_description || ""}${hints[json.error] ? ` (probable causa: ${hints[json.error]})` : ""}`);
+  }
   tokenCache = { accessToken: json.access_token, expiresAt: Date.now() + json.expires_in * 1000 };
   return tokenCache.accessToken;
 }
@@ -118,12 +126,32 @@ async function fetchGoogleAds(since, until) {
   };
 }
 
+// Desglose mensual a nivel cuenta (para la gráfica Ene → hoy del Resumen).
+async function fetchMonthly(since, until) {
+  const rows = await gaql(`
+    SELECT segments.month, metrics.cost_micros, metrics.conversions, metrics.conversions_value
+    FROM customer
+    WHERE segments.date BETWEEN '${since}' AND '${until}'
+  `);
+  return rows.map((r) => ({
+    month: (r.segments.month || "").slice(0, 7),
+    spend: num(r.metrics.costMicros) / 1_000_000,
+    purchases: num(r.metrics.conversions),
+    purchase_value: num(r.metrics.conversionsValue),
+  }));
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
     const { since, until } = readRange(req.query);
-    const key = `${since}_${until}`;
+    const view = req.query.view === "monthly" ? "monthly" : "campaigns";
+    const key = `${view}_${since}_${until}`;
     let data = req.query.refresh === "1" ? null : cache.get(key);
+    if (!data && view === "monthly") {
+      data = { source: "google_ads", view, since, until, rows: await fetchMonthly(since, until), fetchedAt: new Date().toISOString() };
+      cache.set(key, data);
+    }
     if (!data) {
       const { account, rows } = await fetchGoogleAds(since, until);
       data = { source: "google_ads", since, until, apiVersion: API_VERSION, accounts: [account], rows, fetchedAt: new Date().toISOString() };
