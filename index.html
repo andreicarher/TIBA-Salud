@@ -10,15 +10,18 @@
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  /* Tokens de marca (tomados de tibasalud.com). Cambiar de marca = cambiar solo este bloque. */
+  /* Tokens de marca: Brandbook Tiba Salud 2026 (paleta institucional). Cambiar de marca = cambiar solo este bloque.
+     Laila Black #26282E · Laila Light #C6DAE8 · Light White #FFFFFF
+     Acento: Cúrcuma Black #D4761B (paleta complementos básicos), solo para la cifra protagonista y líneas de tendencia.
+     --acero es un tono más profundo de Laila Light, para que barras y series tengan contraste suficiente sobre blanco. */
   :root{
-    --carbon:#1D1E22; --marino:#052534; --acero:#89ACBA; --celeste:#AEE0FC; --naranja:#FA8741;
-    --blanco:#FFFFFF; --fondo:#F4F8FA; --texto:#3B3C3F; --texto-suave:#717274; --borde:#E3EAEE; --texto-claro:#F2F2F2;
+    --carbon:#26282E; --marino:#26282E; --acero:#6F93AE; --celeste:#C6DAE8; --naranja:#D4761B;
+    --blanco:#FFFFFF; --fondo:#F4F8FB; --texto:#3A3C43; --texto-suave:#6B6E76; --borde:#DDE7EF; --texto-claro:#FFFFFF;
     /* Semánticos: nunca se sustituyen por los de marca */
     --sube:#1E8E5A; --baja:#C8432F; --aviso:#B7791F;
     /* Series de gráficas */
     --c-ventas:var(--marino); --c-inversion:var(--naranja); --c-meta:var(--marino); --c-google:var(--acero);
-    --c-donut-1:var(--marino); --c-donut-2:var(--acero); --c-donut-3:var(--naranja); --c-donut-otros:#D5DEE3;
+    --c-donut-1:var(--marino); --c-donut-2:var(--acero); --c-donut-3:var(--naranja); --c-donut-otros:var(--celeste);
     --font:'Montserrat','Helvetica Neue',Arial,sans-serif; --radio:10px;
   }
   *{ box-sizing:border-box; }
@@ -94,8 +97,8 @@
   .step .name{ color:var(--marino); font-weight:600; }
   .step .track{ background:var(--fondo); border-radius:6px; height:30px; overflow:hidden; }
   .step .fill{ height:100%; background:var(--marino); border-radius:6px; min-width:3px; }
-  .step:nth-child(2) .fill{ background:#1F4456; } .step:nth-child(3) .fill{ background:#4F7889; }
-  .step:nth-child(4) .fill{ background:var(--acero); } .step:nth-child(5) .fill{ background:var(--naranja); }
+  .step:nth-child(2) .fill{ background:#4A4F5A; } .step:nth-child(3) .fill{ background:var(--acero); }
+  .step:nth-child(4) .fill{ background:var(--celeste); } .step:nth-child(5) .fill{ background:var(--naranja); }
   .step .rate{ text-align:right; color:var(--texto-suave); font-size:.78rem; line-height:1.3; }
   .step .rate b{ display:block; color:var(--marino); font-size:.9rem; font-variant-numeric:tabular-nums; }
 
@@ -124,7 +127,7 @@
   .table-plain td.var{ font-weight:700; color:var(--marino); }
   .ar{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); border:1px solid var(--borde); }
   .ar > div{ padding:1.1rem 1.25rem; }
-  .ar .adq{ background:#E4F3FC; border-left:4px solid var(--marino); }
+  .ar .adq{ background:#EAF1F7; border-left:4px solid var(--marino); }
   .ar .ret{ background:var(--blanco); }
   .ar .metric{ padding:.6rem 0; border-bottom:1px solid rgba(5,37,52,.1); }
   .ar .metric:last-child{ border-bottom:0; }
@@ -141,9 +144,10 @@
   .fun-top{ display:flex; justify-content:space-between; gap:1rem; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:var(--texto-suave); margin-bottom:.35rem; }
   .fun-top b{ font-size:.95rem; letter-spacing:0; text-transform:none; color:var(--marino); font-variant-numeric:tabular-nums; }
   .fun-top small{ font-size:.75rem; letter-spacing:0; text-transform:none; color:var(--texto-suave); margin-left:.4rem; }
-  .fun-bar{ height:10px; background:#E3EAEE; }
+  .fun-bar{ height:10px; background:#E8EFF5; }
   .fun-bar i{ display:block; height:100%; background:var(--marino); }
   .fun-row:nth-child(4) .fun-bar i{ background:var(--naranja); }
+  .pdot{ display:inline-block; width:.62rem; height:.62rem; border-radius:50%; margin-right:.5rem; vertical-align:.05rem; flex:none; }
   .empty{ font-size:.85rem; color:var(--texto-suave); padding:.5rem 0; }
 
   footer{ background:var(--carbon); color:var(--texto-claro); font-size:.78rem; }
@@ -365,6 +369,21 @@ const OBJECTIVES = {
 };
 
 const PAGE_SIZE = 15;
+
+// Brandbook 2026: cada fórmula y complemento tiene su color ("Black" de su paleta).
+// Se usa como punto identificador junto al nombre del producto. El orden importa (lo más específico primero).
+const PRODUCT_COLORS = [
+  ['glicinato', '#77A692'], ['citrato', '#5F8996'], ['oxido', '#4F2C1D'],
+  ['te verde', '#00744B'], ['toronjil', '#003349'], ['alcachofa', '#3F2A56'], ['nac', '#145143'], ['curcuma', '#D4761B'],
+  ['idea', '#3F2A56'], ['fri', '#772252'], ['pultsu', '#B21E29'], ['scudo', '#21362C'], ['kirei', '#6F1D46'], ['laila', '#26282E'],
+];
+const normTxt = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ī/g, 'i');
+function productColor(title){
+  const t = normTxt(title);
+  const hit = PRODUCT_COLORS.find(([k]) => new RegExp(`(^|[^a-z])${k}([^a-z]|$)`).test(t));
+  return hit ? hit[1] : null;
+}
+const productDot = title => { const c = productColor(title); return `<i class="pdot" style="${c ? `background:${c}` : 'background:var(--celeste)'}" aria-hidden="true"></i>`; };
 const DEMO = new URLSearchParams(location.search).has('demo');   // ?demo=1 → datos de ejemplo
 
 /* ==========================================================================
@@ -755,9 +774,9 @@ function renderAdqRet(sc, sp, spC, spP){
 
 // ---- Rankings (Top estados / Top productos)
 function rangeTitle(range){ const f = s => { const d = parseLocalDate(s); return `${d.getDate()} de ${['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'][d.getMonth()]} de ${d.getFullYear()}`; }; return `${f(range.start)} → ${f(range.end)}`; }
-function rankList(el, range, list, unit){
+function rankList(el, range, list, unit, dots = false){
   document.getElementById(el).innerHTML = `<div class="rank-range">${rangeTitle(range)}</div>` + (list.length ? list.map((r, i) => `
-    <div class="rank"><span class="n">${String(i + 1).padStart(2, '0')}</span><span class="name">${escapeHtml(r.name)}</span><span class="amt">${money(r.net)}</span>
+    <div class="rank"><span class="n">${String(i + 1).padStart(2, '0')}</span><span class="name">${dots ? productDot(r.name) : ''}${escapeHtml(r.name)}</span><span class="amt">${money(r.net)}</span>
       <span class="sub2">${int(r.count)} ${unit}</span>${kDelta(r.net, r.prev, money)}</div>`).join('') : '<p class="empty">Sin ventas en este periodo.</p>');
 }
 function renderTopEstados(S, oc, op, range){
@@ -771,7 +790,7 @@ function renderTopProductos(oc, op, range){
   if(!oc){ document.getElementById('topProductos').innerHTML = '<p class="empty">Sin datos de Shopify.</p>'; return; }
   const agg = (orders) => { const m = new Map(); orders.forEach(o => o.items.forEach(it => { const a = m.get(it.product_id) || { name:it.title, net:0, count:0 }; a.net += it.net; a.count += it.qty; m.set(it.product_id, a); })); return m; };
   const c = agg(oc), p = agg(op);
-  rankList('topProductos', range, [...c.entries()].sort((a, b) => b[1].net - a[1].net).slice(0, 5).map(([id, r]) => ({ ...r, prev:p.get(id)?.net ?? 0 })), 'unidades');
+  rankList('topProductos', range, [...c.entries()].sort((a, b) => b[1].net - a[1].net).slice(0, 5).map(([id, r]) => ({ ...r, prev:p.get(id)?.net ?? 0 })), 'unidades', true);
 }
 
 // ---- Funnel Visitas → Compras
@@ -983,7 +1002,7 @@ const donutPctPlugin = {
       const share = ds.data[i] / total; if(share < 0.05) return;
       const { x, y } = arc.tooltipPosition();
       ctx.save(); ctx.font = `600 12px ${css('--font')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillStyle = i === 1 || i === 3 ? css('--marino') : css('--blanco');
+      ctx.fillStyle = i === 0 ? css('--blanco') : css('--marino');
       ctx.fillText(`${Math.round(share * 100)}%`, x, y); ctx.restore();
     });
   },
@@ -1053,7 +1072,7 @@ document.querySelectorAll('#audMetric button').forEach(b => b.addEventListener('
    ========================================================================== */
 const shareBar = (v, r) => `<span class="bar-cell">${pct(v)}<i style="width:${Math.round((v || 0) * 80)}px"></i></span>`;
 const tblProductos = createTable({ tableId:'tblProductos', pagerId:'pgProductos', noun:'productos', sortKey:'net', columns:[
-  { key:'title', label:'Producto' },
+  { key:'title', label:'Producto', f:v => `${productDot(v)}${escapeHtml(v)}` },
   { key:'type', label:'Categoría', align:'left', f:v => escapeHtml(v || 'Sin categoría') },
   { key:'units', label:'Unidades', f:int },
   { key:'orders', label:'Pedidos', f:int },
