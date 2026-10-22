@@ -73,9 +73,11 @@ async function gql(query, variables = {}, attempt = 0) {
   return json.data;
 }
 
+let infoAt = 0;
 async function getShopInfo() {
-  if (infoCache) return infoCache;
-  const d = await gql(`{ shop { name ianaTimezone currencyCode taxesIncluded } }`);
+  if (infoCache && Date.now() - infoAt < 10 * 60_000) return infoCache;
+  infoAt = Date.now();
+  const d = await gql(`{ shop { name ianaTimezone currencyCode taxesIncluded } currentAppInstallation { accessScopes { handle } } }`);
   const env = process.env.SHOPIFY_TAXES_INCLUDED;
   infoCache = {
     name: d.shop.name,
@@ -83,7 +85,10 @@ async function getShopInfo() {
     currency: d.shop.currencyCode,
     taxesIncluded: env === "true" ? true : env === "false" ? false : !!d.shop.taxesIncluded,
     taxesIncludedSource: env === "true" || env === "false" ? "env" : "shop",
+    // Permisos que la tienda realmente le concedió a la app (sirve para diagnosticar read_all_orders)
+    scopes: (d.currentAppInstallation?.accessScopes || []).map((x) => x.handle).sort(),
   };
+  infoCache.allOrders = infoCache.scopes.includes("read_all_orders");
   return infoCache;
 }
 
@@ -268,9 +273,10 @@ async function fetchAbandoned(since, until, info) {
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
+    if (req.query.refresh === "1") { tokenCache = { token: null, expiresAt: 0 }; infoCache = null; }
     const info = await getShopInfo();
     if (req.query.info === "1") {
-      res.setHeader("Cache-Control", "s-maxage=3600");
+      res.setHeader("Cache-Control", "no-store");
       return res.status(200).json({ source: "shopify", shop: info });
     }
     const { since, until } = readRange(req.query);
