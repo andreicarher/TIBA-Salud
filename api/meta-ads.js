@@ -1,6 +1,7 @@
 // GET /api/meta-ads?since=YYYY-MM-DD&until=YYYY-MM-DD[&refresh=1]
 //   → filas diarias por campaña (con objective), sin agregar.
 // GET /api/meta-ads?view=monthly&since=...&until=...   → inversión por mes
+// GET /api/meta-ads?view=ads&since=...&until=...       → rendimiento por anuncio con miniatura
 // GET /api/meta-ads?view=audiences&since=...&until=...
 //   → totales del rango por edad, género, dispositivo y plataforma.
 //
@@ -122,6 +123,63 @@ async function fetchMonthly(since, until, token) {
   return { source: "meta", view: "monthly", since, until, rows, fetchedAt: new Date().toISOString() };
 }
 
+// Creativos: totales del rango por anuncio (sin time_increment, porque el alcance
+// y la frecuencia no se pueden sumar día por día) + miniatura del creativo.
+async function fetchAds(since, until, token) {
+  const rows = [];
+  for (const id of accountIds()) {
+    const params = new URLSearchParams({
+      level: "ad",
+      time_range: JSON.stringify({ since, until }),
+      fields: [
+        "ad_id", "ad_name", "adset_name", "campaign_id", "campaign_name", "objective",
+        "spend", "reach", "impressions", "frequency", "inline_link_clicks",
+        "unique_inline_link_clicks", "unique_inline_link_click_ctr", "actions", "action_values",
+      ].join(","),
+      use_unified_attribution_setting: "true",
+      limit: "500",
+      access_token: token,
+    });
+    let url = `${BASE}/${id}/insights?${params}`;
+    while (url) {
+      const json = await metaGet(url);
+      for (const r of json.data || []) {
+        rows.push({
+          ad_id: r.ad_id, ad: r.ad_name, adset: r.adset_name, campaign_id: r.campaign_id, campaign: r.campaign_name,
+          objective: r.objective, account_id: id,
+          spend: num(r.spend), reach: num(r.reach), impressions: num(r.impressions), frequency: num(r.frequency),
+          link_clicks: num(r.inline_link_clicks), unique_link_clicks: num(r.unique_inline_link_clicks),
+          unique_ctr: num(r.unique_inline_link_click_ctr) / 100,   // Meta lo entrega en porcentaje
+          landing_page_views: pickAction(r.actions, ACTION_PRIORITY.landing_page_views),
+          add_to_cart: pickAction(r.actions, ACTION_PRIORITY.add_to_cart),
+          checkouts: pickAction(r.actions, ACTION_PRIORITY.checkouts),
+          purchases: pickAction(r.actions, ACTION_PRIORITY.purchases),
+          purchase_value: pickAction(r.action_values, ACTION_PRIORITY.purchases),
+        });
+      }
+      url = json.paging?.next || null;
+    }
+  }
+
+  // Miniaturas: hasta 50 anuncios por llamada. Si falla, el dashboard muestra un marcador.
+  const ids = [...new Set(rows.map((r) => r.ad_id))];
+  const thumbs = {};
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    try {
+      const json = await metaGet(`${BASE}/?ids=${chunk.join(",")}&fields=${encodeURIComponent("creative.thumbnail_width(240).thumbnail_height(240){thumbnail_url,image_url,object_type}")}&access_token=${encodeURIComponent(token)}`);
+      for (const [adId, ad] of Object.entries(json)) {
+        const c = ad?.creative || {};
+        thumbs[adId] = { thumbnail: c.thumbnail_url || c.image_url || null, type: c.object_type || null };
+      }
+    } catch (err) {
+      console.error("Meta thumbnails:", err.message);
+    }
+  }
+  for (const r of rows) Object.assign(r, thumbs[r.ad_id] || { thumbnail: null, type: null });
+  return { source: "meta", view: "ads", since, until, rows, fetchedAt: new Date().toISOString() };
+}
+
 // Audiencias: una llamada por breakdown, a nivel cuenta, totales del rango.
 const BREAKDOWNS = ["age", "gender", "device_platform", "publisher_platform"];
 
@@ -169,10 +227,14 @@ export default async function handler(req, res) {
     const token = process.env.META_ACCESS_TOKEN;
     if (!token) throw new Error("Falta META_ACCESS_TOKEN en las variables de entorno");
     const { since, until } = readRange(req.query);
-    const view = ["audiences", "monthly"].includes(req.query.view) ? req.query.view : "campaigns";
+    const view = ["audiences", "monthly", "ads"].includes(req.query.view) ? req.query.view : "campaigns";
     const key = `${view}_${since}_${until}`;
 
     let data = req.query.refresh === "1" ? null : cache.get(key);
+    if (!data && view === "ads") {
+      data = await fetchAds(since, until, token);
+      cache.set(key, data);
+    }
     if (!data && view === "monthly") {
       data = await fetchMonthly(since, until, token);
       cache.set(key, data);
