@@ -20,7 +20,7 @@
     /* Semánticos: nunca se sustituyen por los de marca */
     --sube:#1E8E5A; --baja:#C8432F; --aviso:#B7791F;
     /* Series de gráficas */
-    --c-ventas:var(--marino); --c-inversion:var(--naranja); --c-meta:var(--marino); --c-google:var(--acero);
+    --c-ventas:var(--marino); --c-ventas-n:#3F2A56; /* pedidos: Idea Black, para distinguirlo del valor de ventas */ --c-inversion:var(--naranja); --c-meta:var(--marino); --c-google:var(--acero);
     --c-donut-1:var(--marino); --c-donut-2:var(--acero); --c-donut-3:var(--naranja); --c-donut-otros:var(--celeste);
     --font:'Montserrat','Helvetica Neue',Arial,sans-serif; --radio:10px;
   }
@@ -147,6 +147,19 @@
   .fun-bar{ height:10px; background:#E8EFF5; }
   .fun-bar i{ display:block; height:100%; background:var(--marino); }
   .fun-row:nth-child(4) .fun-bar i{ background:var(--naranja); }
+  .chips{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+  .chips button{ font:inherit; font-size:.78rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:.5rem 1rem; border-radius:999px; border:1px solid var(--borde); background:var(--blanco); color:var(--texto); cursor:pointer; }
+  .chips button[aria-pressed="true"]{ background:var(--marino); border-color:var(--marino); color:var(--blanco); }
+  .chips button small{ font-weight:500; opacity:.75; margin-left:.3rem; letter-spacing:0; }
+  .tbl-ads td:first-child, .tbl-ads th:first-child{ min-width:76px; width:76px; }
+  .thumb{ width:56px; height:56px; border-radius:6px; object-fit:cover; display:block; background:var(--fondo); border:1px solid var(--borde); }
+  .thumb.ph{ display:flex; align-items:center; justify-content:center; color:var(--texto-suave); font-size:.62rem; text-align:center; line-height:1.2; }
+  .concept{ max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--marino); font-weight:600; text-align:left; }
+  .concept-sub{ font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--texto-suave); text-align:left; margin-top:.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px; }
+  .tgrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:var(--blanco); border:1px solid var(--borde); }
+  .tgrid .kcell .kvalue{ font-size:1.45rem; }
+  .tgrid .tline{ font-size:.78rem; color:var(--texto-suave); display:flex; justify-content:space-between; gap:.5rem; padding:.15rem 0; }
+  .tgrid .tline b{ color:var(--marino); font-variant-numeric:tabular-nums; }
   .pdot{ display:inline-block; width:.62rem; height:.62rem; border-radius:50%; margin-right:.5rem; vertical-align:.05rem; flex:none; }
   .empty{ font-size:.85rem; color:var(--texto-suave); padding:.5rem 0; }
 
@@ -156,7 +169,7 @@
   @media (max-width:1100px){ .kpis, .kpis.k7{ grid-template-columns:repeat(3,minmax(0,1fr)); } .grid-21, .grid-2{ grid-template-columns:minmax(0,1fr); } .kgrid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
   @media (max-width:640px){
     .kpis, .kpis.k7, .kgrid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
-    .ar{ grid-template-columns:minmax(0,1fr); }
+    .ar, .tgrid{ grid-template-columns:minmax(0,1fr); }
     .kcell .kvalue{ font-size:1.35rem; }
     .range-label{ margin-left:0; width:100%; text-align:left; }
     .chart-box{ height:270px; }
@@ -176,6 +189,7 @@
   <nav class="tabs" role="tablist" aria-label="Secciones">
     <button role="tab" data-tab="resumen" aria-selected="true">Resumen</button>
     <button role="tab" data-tab="meta" aria-selected="false">Meta Ads</button>
+    <button role="tab" data-tab="creativos" aria-selected="false">Creativos Meta</button>
     <button role="tab" data-tab="google" aria-selected="false">Google Ads</button>
     <button role="tab" data-tab="audiencias" aria-selected="false">Audiencias</button>
     <button role="tab" data-tab="productos" aria-selected="false">Productos y tienda</button>
@@ -205,6 +219,17 @@
       <div class="eyebrow">KPIs</div>
       <div class="sec-head"><h2 class="sec-title">Indicadores clave</h2><span class="sec-meta" id="kpiMeta"></span></div>
       <div class="kgrid" id="kpisResumen"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Tendencia semanal</div>
+      <div class="sec-head"><h2 class="sec-title">Evolución semanal</h2><span class="sec-meta" id="semanalMeta">Semanas de lunes a domingo dentro del periodo seleccionado</span></div>
+      <div class="panel">
+        <div class="notice" id="semanalNotice" hidden style="margin-bottom:1rem"></div>
+        <div class="chart-box" style="height:380px"><canvas id="chartSemanal" aria-label="Inversión, ventas, valor de ventas, ROAS y CAC por semana"></canvas></div>
+        <p class="note">Haz clic en una métrica de la leyenda para ocultarla o mostrarla. Ventas = pedidos de Shopify. Valor de ventas = ventas netas (sin IVA ni envío). ROAS = valor de ventas ÷ inversión. CAC = inversión ÷ clientes nuevos.</p>
+        <div class="table-wrap" style="margin-top:1rem"><table class="table-plain" id="tblSemanal"></table></div>
+      </div>
     </div>
 
     <div class="sec">
@@ -244,6 +269,29 @@
       <div class="eyebrow">Funnel</div>
       <div class="sec-head"><h2 class="sec-title">Visitas → Compras</h2><span class="sec-meta">Visitas y carrito: Google Analytics 4. Checkout y compras: datos reales de Shopify</span></div>
       <div class="panel" id="funnelResumen"></div>
+    </div>
+  </section>
+
+  <!-- ===================== CREATIVOS META ===================== -->
+  <section class="stack" data-panel="creativos" role="tabpanel" hidden>
+    <div class="notice" id="adsNotice" hidden></div>
+
+    <div class="sec">
+      <div class="eyebrow">Por tipo de campaña</div>
+      <div class="sec-head"><h2 class="sec-title">Prospecting vs. Retargeting</h2><span class="sec-meta" id="adsRange"></span></div>
+      <div class="tgrid" id="adsTipos"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Ranking</div>
+      <div class="sec-head"><h2 class="sec-title">Top creativos por ROAS</h2><span class="sec-meta">Haz clic en una columna para ordenar por otra métrica</span></div>
+      <div class="chips" id="adsChips" role="group" aria-label="Tipo de campaña"></div>
+      <div class="panel">
+        <div class="table-tools"><input type="search" id="fAd" placeholder="Buscar anuncio o campaña" aria-label="Buscar anuncio o campaña"></div>
+        <div class="table-wrap"><table class="tbl-ads" id="tblAds"></table></div>
+        <div class="pager" id="pgAds"></div>
+        <p class="note">Tipo detectado por el nombre del anuncio y, si no lo indica, por el del conjunto o la campaña: contiene "RTG", "Retargeting" o "Remarketing" → Retargeting; contiene "PRO", "Prospecting" o "Prospección" → Prospecting; si no, Sin clasificar. Las etiquetas manuales de CAMPAIGN_OVERRIDES tienen prioridad. Compras, valor y ROAS son los que reporta Meta.</p>
+      </div>
     </div>
   </section>
 
@@ -535,6 +583,7 @@ async function loadAll(range){
     meta: getJSON(`/api/meta-ads?${q}`),
     google: getJSON(`/api/google-ads?${q}`),
     audiences: getJSON(`/api/meta-ads?view=audiences&${cur}`),
+    ads: getJSON(`/api/meta-ads?view=ads&${cur}`),
     ga4: getJSON(`/api/ga4?${cur}`),
     checkouts: getJSON(`/api/shopify?view=checkouts&${cur}`),
     monthly: loadMonthly(),
@@ -692,12 +741,81 @@ function renderResumen(S, range){
   document.getElementById('kpisResumen').innerHTML = items.map(k => `
     <div class="kcell${k.hero ? ' hero' : ''}"><div class="klabel">${k.label}</div><div class="kvalue">${k.value}</div>${k.delta}</div>`).join('');
 
+  renderSemanal(S, range, oc);
   renderMensual(S.monthly);
   renderCruce(S, range, sc, mC, gC);
   renderAdqRet(sc, sp, spC, spP);
   renderTopEstados(S, oc, op, range);
   renderTopProductos(oc, op, range);
   renderFunnelResumen(S, sc);
+}
+
+// ---- Evolución semanal (lunes a domingo, recortada al periodo seleccionado)
+function renderSemanal(S, range, oc){
+  const MESC = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const weekStart = d => { const x = parseLocalDate(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return toStr(x); };
+  const weeks = [];
+  for(let d = range.start; d <= range.end; d = addDays(d, 1)){
+    const k = weekStart(d);
+    let w = weeks[weeks.length - 1];
+    if(!w || w.key !== k){ w = { key:k, from:d, to:d, days:0, spend:0, orders:0, value:0, newCust:new Set() }; weeks.push(w); }
+    w.to = d; w.days++;
+  }
+  const byKey = Object.fromEntries(weeks.map(w => [w.key, w]));
+  const inR = d => d >= range.start && d <= range.end;
+  [...(S.metaRows || []), ...(S.googleRows || [])].forEach(r => { if(inR(r.date)) byKey[weekStart(r.date)].spend += r.spend; });
+  (oc || []).forEach(o => {
+    const w = byKey[weekStart(o.date)]; if(!w) return;
+    w.orders++; w.value += o.net;
+    if(o.is_new) w.newCust.add(o.customer_id || `invitado:${o.id}`);
+  });
+  weeks.forEach(w => { w.roas = oc ? div(w.value, w.spend) : null; w.cac = oc ? div(w.spend, w.newCust.size) : null; w.partial = w.days < 7; });
+
+  const fmtD = s => { const d = parseLocalDate(s); return `${d.getDate()} ${MESC[d.getMonth()]}`; };
+  const label = w => w.from === w.to ? fmtD(w.from) : `${fmtD(w.from)} – ${fmtD(w.to)}`;
+  const msgs = [];
+  if(!oc) msgs.push('Sin datos de Shopify: ventas, valor de ventas, ROAS y CAC no se pueden calcular.');
+  if(weeks.some(w => w.partial)) msgs.push('Las semanas marcadas con * están incompletas porque el periodo empieza o termina a mitad de semana; compáralas con cuidado.');
+  notice('semanalNotice', msgs.join('<br>'));
+
+  const font = { family:css('--font'), size:11 };
+  charts.semanal?.destroy();
+  charts.semanal = new Chart(document.getElementById('chartSemanal'), {
+    data:{ labels:weeks.map(w => `${label(w)}${w.partial ? '*' : ''}`), datasets:[
+      { type:'line', label:'ROAS', yAxisID:'yRoas', data:weeks.map(w => w.roas == null ? null : +w.roas.toFixed(2)), borderColor:css('--naranja'), backgroundColor:css('--naranja'), borderWidth:2.5, pointRadius:3, cubicInterpolationMode:'monotone', order:0 },
+      { type:'line', label:'CAC', yAxisID:'yCac', data:weeks.map(w => w.cac), borderColor:css('--acero'), backgroundColor:css('--acero'), borderWidth:2, borderDash:[6, 4], pointRadius:3, pointStyle:'rectRot', cubicInterpolationMode:'monotone', order:0 },
+      { type:'line', label:'Ventas (pedidos)', yAxisID:'yVentas', data:weeks.map(w => oc ? w.orders : null), borderColor:css('--c-ventas-n'), backgroundColor:css('--c-ventas-n'), borderWidth:2, borderDash:[2, 3], pointRadius:3, cubicInterpolationMode:'monotone', order:0 },
+      { type:'bar', label:'Inversión', yAxisID:'y', data:weeks.map(w => w.spend), backgroundColor:css('--celeste'), borderRadius:2, order:1 },
+      { type:'bar', label:'Valor de ventas', yAxisID:'y', data:weeks.map(w => oc ? w.value : null), backgroundColor:css('--marino'), borderRadius:2, order:1 },
+    ]},
+    options:{
+      responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ position:'top', align:'end', labels:{ font, usePointStyle:true, boxWidth:8 } },
+        tooltip:{ callbacks:{ label:c => {
+          const v = c.parsed.y, n = c.dataset.label;
+          if(n === 'ROAS') return ` ROAS: ${xRoas(v)}`;
+          if(n.startsWith('Ventas')) return ` Ventas: ${int(v)} pedidos`;
+          return ` ${n}: ${money(v)}`;
+        } } },
+      },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ font, maxRotation:0, autoSkip:true } },
+        y:{ beginAtZero:true, grid:{ color:css('--borde') }, title:{ display:true, text:'Inversión y valor de ventas', font }, ticks:{ font, callback:v => money(v) } },
+        yVentas:{ position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Pedidos', font }, ticks:{ font, precision:0 } },
+        yRoas:{ position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'ROAS', font }, ticks:{ font, callback:v => `${v}x` } },
+        // El CAC usa su propia escala (no se muestra) para que su tendencia se vea aunque sea mucho menor que la inversión
+        yCac:{ display:false, beginAtZero:true },
+      },
+    },
+  });
+
+  // Tabla semanal con valores exactos
+  const tot = weeks.reduce((a, w) => { a.spend += w.spend; a.orders += w.orders; a.value += w.value; w.newCust.forEach(c => a.newCust.add(c)); return a; }, { spend:0, orders:0, value:0, newCust:new Set() });
+  const row = (lbl, w, cls = '') => `<tr class="${cls}"><td>${lbl}</td><td>${money(w.spend)}</td><td>${oc ? int(w.orders) : '—'}</td><td>${oc ? money(w.value) : '—'}</td><td>${oc ? xRoas(div(w.value, w.spend)) : '—'}</td><td>${oc ? money(div(w.spend, w.newCust.size)) : '—'}</td><td>${oc ? int(w.newCust.size) : '—'}</td></tr>`;
+  document.getElementById('tblSemanal').innerHTML = `
+    <thead><tr><th>Semana</th><th>Inversión</th><th>Ventas</th><th>Valor de ventas</th><th>ROAS</th><th>CAC</th><th>Clientes nuevos</th></tr></thead>
+    <tbody>${weeks.map(w => row(`${label(w)}${w.partial ? ' *' : ''}`, w)).join('')}${weeks.length > 1 ? row('Total del periodo', tot, 'total') : ''}</tbody>`;
 }
 
 // ---- Desglose mensual Ene → hoy
@@ -905,6 +1023,90 @@ function applyCampaignFilter(){
 }
 ['fObjetivo','fEtiqueta'].forEach(id => document.getElementById(id).addEventListener('change', applyCampaignFilter));
 document.getElementById('fCampana').addEventListener('input', applyCampaignFilter);
+
+/* ==========================================================================
+   Pestaña: Creativos Meta (rendimiento por anuncio y tipo de campaña)
+   ========================================================================== */
+const AD_TYPES = ['Prospecting', 'Retargeting', 'Sin clasificar'];
+const RX_RTG = /(^|[^a-z])(rtg|retargeting|remarketing|rmkt)([^a-z]|$)/;
+const RX_PRO = /(^|[^a-z])(pro|prosp|prospecting|prospeccion)([^a-z]|$)/;
+function adType(r){
+  const o = CAMPAIGN_OVERRIDES[String(r.campaign_id)];
+  if(o) return /retarget/i.test(o) ? 'Retargeting' : /prospect/i.test(o) ? 'Prospecting' : o;
+  // Primero el nombre del anuncio; si no indica nada, el conjunto y luego la campaña.
+  for(const name of [r.ad, r.adset, r.campaign]){
+    const t = normTxt(name);
+    if(RX_RTG.test(t)) return 'Retargeting';
+    if(RX_PRO.test(t)) return 'Prospecting';
+  }
+  return 'Sin clasificar';
+}
+const AD_METRICS = ['spend','impressions','landing_page_views','link_clicks','purchases','value'];
+function adDerive(t){ return { ...t, cpv:div(t.spend, t.landing_page_views), roas:div(t.value, t.spend), cpa:div(t.spend, t.purchases) }; }
+
+let adsFilter = 'Todos';
+const thumbCell = (v, r) => v
+  ? `<img class="thumb" src="${escapeHtml(v)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;thumb ph&quot;>Sin vista previa</div>'">`
+  : '<div class="thumb ph">Sin vista previa</div>';
+const tblAds = createTable({ tableId:'tblAds', pagerId:'pgAds', noun:'anuncios', sortKey:'roas', columns:[
+  { key:'thumbnail', label:'Miniatura', sortable:false, f:thumbCell },
+  { key:'ad', label:'Concepto', align:'left', f:(v, r) => r.isTotal ? '' : `<div class="concept" title="${escapeHtml(v)}">${escapeHtml(v)}</div><div class="concept-sub" title="${escapeHtml(r.campaign)}">${escapeHtml(r.type)} · ${escapeHtml(r.campaign)}</div>` },
+  { key:'spend', label:'Inversión', f:money },
+  { key:'reach', label:'Alcance', f:int },
+  { key:'impressions', label:'Impresiones', f:int },
+  { key:'frequency', label:'Frecuencia', f:v => v == null ? '' : fmtDec.format(v) },
+  { key:'unique_ctr', label:'CTR único', f:v => v == null ? '' : pct(v) },
+  { key:'landing_page_views', label:'Visitas a la web', f:int },
+  { key:'cpv', label:'Costo por visita', f:money2 },
+  { key:'purchases', label:'Compras', f:int },
+  { key:'value', label:'Valor de compra', f:money },
+  { key:'roas', label:'ROAS', f:xRoas },
+], totalRow:list => {
+  const t = adDerive(list.reduce((a, r) => { AD_METRICS.forEach(k => a[k] += r[k] || 0); return a; }, Object.fromEntries(AD_METRICS.map(k => [k, 0]))));
+  // Alcance, frecuencia y CTR único no se pueden sumar entre anuncios: se dejan en blanco.
+  return { ...t, thumbnail:undefined, ad:undefined, reach:undefined, frequency:undefined, unique_ctr:undefined, isTotal:true };
+}, emptyText:'No hay anuncios con inversión para este tipo y periodo.' });
+
+function applyAdsFilter(){
+  const q = normTxt(document.getElementById('fAd').value.trim());
+  tblAds.setFilter(r => (adsFilter === 'Todos' || r.type === adsFilter) && (!q || normTxt(`${r.ad} ${r.adset} ${r.campaign}`).includes(q)));
+}
+document.getElementById('fAd').addEventListener('input', applyAdsFilter);
+
+function renderCreativos(S, range){
+  document.getElementById('adsRange').textContent = `${range.start} → ${range.end}`;
+  if(!S.adsRows){
+    notice('adsNotice', `Meta no devolvió el rendimiento por anuncio: ${escapeHtml(S.errors.ads || '')}`);
+    document.getElementById('adsTipos').innerHTML = ''; document.getElementById('adsChips').innerHTML = ''; tblAds.setRows([]); return;
+  }
+  notice('adsNotice', '');
+  const rows = S.adsRows.filter(r => r.spend > 0 || r.impressions > 0).map(r => adDerive({
+    ...r, value:+r.purchase_value || 0, type:adType(r),
+  }));
+
+  // Resumen por tipo
+  const totalSpend = rows.reduce((a, r) => a + r.spend, 0);
+  document.getElementById('adsTipos').innerHTML = AD_TYPES.map(t => {
+    const list = rows.filter(r => r.type === t);
+    const a = adDerive(list.reduce((x, r) => { AD_METRICS.forEach(k => x[k] += r[k] || 0); return x; }, Object.fromEntries(AD_METRICS.map(k => [k, 0]))));
+    return `<div class="kcell${t === 'Sin clasificar' ? '' : ''}"><div class="klabel">${t} · ${int(list.length)} anuncios</div>
+      <div class="kvalue">${money(a.spend)}</div>
+      <div class="tline"><span>% de la inversión</span><b>${pct1(div(a.spend, totalSpend))}</b></div>
+      <div class="tline"><span>ROAS (Meta)</span><b>${xRoas(a.roas)}</b></div>
+      <div class="tline"><span>Compras · costo por compra</span><b>${int(a.purchases)} · ${money(a.cpa)}</b></div>
+      <div class="tline"><span>Costo por visita</span><b>${money2(a.cpv)}</b></div></div>`;
+  }).join('');
+
+  // Filtros
+  const count = t => t === 'Todos' ? rows.length : rows.filter(r => r.type === t).length;
+  document.getElementById('adsChips').innerHTML = ['Todos', ...AD_TYPES].map(t =>
+    `<button data-t="${t}" aria-pressed="${t === adsFilter}">${t}<small>${count(t)}</small></button>`).join('');
+  document.querySelectorAll('#adsChips button').forEach(b => b.onclick = () => { adsFilter = b.dataset.t; renderCreativosChips(); applyAdsFilter(); });
+
+  tblAds.setRows(rows);
+  applyAdsFilter();
+}
+function renderCreativosChips(){ document.querySelectorAll('#adsChips button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === adsFilter))); }
 
 /* ==========================================================================
    Pestaña: Google Ads
@@ -1155,7 +1357,7 @@ async function refresh(){
   const d = await loadAll(range);
   if(seq !== loadSeq) return;   // llegó una respuesta vieja después de cambiar el rango
 
-  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
+  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ads:d.ads, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
   STATE = {
     orders: d.shopify ? d.shopify.orders : null,
     geo: d.shopify ? d.shopify.geo : null,
@@ -1165,15 +1367,17 @@ async function refresh(){
     metaRows: d.meta ? normMeta(d.meta.rows || []) : null,
     googleRows: d.google ? normGoogle(d.google.rows || []) : null,
     audRows: d.audiences ? d.audiences.rows : null,
+    adsRows: d.ads ? d.ads.rows : null,
     errors: d.errors,
   };
-  window.RAW_ORDERS = STATE.orders || []; window.RAW_META_ROWS = STATE.metaRows || [];
+  window.RAW_ORDERS = STATE.orders || []; window.RAW_META_ROWS = STATE.metaRows || []; window.RAW_ADS = STATE.adsRows || [];
   window.RAW_GOOGLE_ROWS = STATE.googleRows || []; window.RAW_AUDIENCES = STATE.audRows || [];
   window.STATE = STATE;
 
   renderStatus(d.status, d.errors);
   renderResumen(STATE, range);
   renderMeta(STATE, range);
+  renderCreativos(STATE, range);
   renderGoogle(STATE, range);
   renderAudiencias(STATE);
   renderProductos(STATE, range);
@@ -1256,7 +1460,17 @@ function demoData(since, until, range){
   const curOrders = orders.filter(o => o.date >= range.start && o.date <= range.end).length;
   const ga4 = { sessions:Math.round(curOrders * 40), events:{ add_to_cart:Math.round(curOrders * 6.4), begin_checkout:Math.round(curOrders * 1.6), purchase:curOrders } };
   const checkouts = { abandoned:{ count:Math.round(curOrders * 0.55), precision:'EXACT' } };
-  return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
+  const adNames = [
+    ['RTG_IMG_WEB_1080x1080_Scudo','RTG carrito abandonado','3'],['PRO_VID_WEB_1080x1920_Kirei','Kirei - Belleza Oct','2'],['PRO_IMG_WEB_1080x1080_Kit','Kit Quema y Reduce | Conversiones','1'],
+    ['RTG_CAR_WEB_1080x1080_Catalogo','Retargeting visitantes 30d','7'],['Video testimonial Pultsu','Video Pultsu','8'],['PRO_IMG_WEB_2x1_Magnesio','Catálogo Advantage+','9'],
+    ['Carrusel beneficios','Scudo defensas','4'],['UGC Té Verde','Tráfico blog sueño','5'],['PRO_VID_WEB_Reel_Fri','Catálogo Advantage+','9'],['RTG_IMG_WEB_Oferta20','RTG carrito abandonado','3'],
+  ];
+  const adsRows = adNames.map(([ad, campaign, cid], i) => {
+    const spend = Math.round(300 + rnd() * 9000), reach = Math.round(spend * (6 + rnd() * 8)), freq = 1.2 + rnd() * 2, imp = Math.round(reach * freq);
+    const lpv = Math.round(imp * (0.004 + rnd() * 0.01)), pur = Math.round(lpv * (0.03 + rnd() * 0.07));
+    return { ad_id:String(i), ad, adset:'', campaign, campaign_id:cid, spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:null };
+  });
+  return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
 }
 
