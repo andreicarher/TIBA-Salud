@@ -132,7 +132,7 @@ async function fetchAds(since, until, token) {
       level: "ad",
       time_range: JSON.stringify({ since, until }),
       fields: [
-        "ad_id", "ad_name", "adset_name", "campaign_id", "campaign_name", "objective",
+        "ad_id", "ad_name", "adset_id", "adset_name", "campaign_id", "campaign_name", "objective",
         "spend", "reach", "impressions", "frequency", "inline_link_clicks",
         "unique_inline_link_clicks", "unique_inline_link_click_ctr", "actions", "action_values",
       ].join(","),
@@ -145,7 +145,7 @@ async function fetchAds(since, until, token) {
       const json = await metaGet(url);
       for (const r of json.data || []) {
         rows.push({
-          ad_id: r.ad_id, ad: r.ad_name, adset: r.adset_name, campaign_id: r.campaign_id, campaign: r.campaign_name,
+          ad_id: r.ad_id, ad: r.ad_name, adset_id: r.adset_id, adset: r.adset_name, campaign_id: r.campaign_id, campaign: r.campaign_name,
           objective: r.objective, account_id: id,
           spend: num(r.spend), reach: num(r.reach), impressions: num(r.impressions), frequency: num(r.frequency),
           link_clicks: num(r.inline_link_clicks), unique_link_clicks: num(r.unique_inline_link_clicks),
