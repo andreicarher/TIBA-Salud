@@ -147,6 +147,17 @@
   .fun-bar{ height:10px; background:#E8EFF5; }
   .fun-bar i{ display:block; height:100%; background:var(--marino); }
   .fun-row:nth-child(4) .fun-bar i{ background:var(--naranja); }
+  .tcell{ display:flex; align-items:center; gap:.4rem; }
+  .tname{ min-width:0; }
+  .tw{ flex:none; width:1.5rem; height:1.5rem; border:1px solid var(--borde); border-radius:4px; background:var(--blanco); color:var(--marino); cursor:pointer; font-size:.75rem; line-height:1; padding:0; }
+  .tw:hover{ background:var(--fondo); }
+  .tw-empty{ display:inline-block; border:0; background:none; cursor:default; }
+  tr.lvl1 td{ background:#F7FAFC; font-size:.82rem; }
+  tr.lvl2 td{ background:#EEF4F8; font-size:.8rem; }
+  tr.lvl1 td:first-child, tr.lvl2 td:first-child{ font-weight:500; }
+  .lvl-tag{ display:inline-block; font-size:.62rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--texto-suave); margin-right:.35rem; }
+  .mini-thumb{ width:28px; height:28px; border-radius:4px; object-fit:cover; vertical-align:middle; margin-right:.45rem; border:1px solid var(--borde); }
+  .chip.pro{ background:var(--celeste); border-color:var(--celeste); }
   .chips{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; }
   .chips button{ font:inherit; font-size:.78rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:.5rem 1rem; border-radius:999px; border:1px solid var(--borde); background:var(--blanco); color:var(--texto); cursor:pointer; }
   .chips button[aria-pressed="true"]{ background:var(--marino); border-color:var(--marino); color:var(--blanco); }
@@ -337,11 +348,11 @@
     </div>
     <div class="card">
       <h2>Campañas</h2>
-      <p class="sub">Haz clic en una columna para ordenar.</p>
+      <p class="sub">Haz clic en ▸ para ver los conjuntos de anuncios de una campaña, y en el ▸ de cada conjunto para ver sus anuncios. Haz clic en una columna para ordenar.</p>
       <div class="table-tools">
         <select id="fObjetivo" aria-label="Objetivo"><option value="">Todos los objetivos</option></select>
         <select id="fEtiqueta" aria-label="Etiqueta"><option value="">Todas las etiquetas</option></select>
-        <input type="search" id="fCampana" placeholder="Buscar campaña" aria-label="Buscar campaña">
+        <input type="search" id="fCampana" placeholder="Buscar campaña, conjunto o anuncio" aria-label="Buscar campaña, conjunto o anuncio">
       </div>
       <div class="table-wrap"><table id="tblCampanas"></table></div>
       <div class="pager" id="pgCampanas"></div>
@@ -405,8 +416,9 @@ const CAMPAIGN_OVERRIDES = {
 };
 
 // Regla secundaria: si el nombre contiene esto (sin importar mayúsculas), se etiqueta como Retargeting.
-const RETARGETING_PATTERN = /rtg|retargeting/i;
-const DEFAULT_LABEL = 'Sin etiqueta';
+const RX_RTG = /(^|[^a-z])(rtg|retargeting|remarketing|rmkt)([^a-z]|$)/;
+const RX_PRO = /(^|[^a-z])(pro|prosp|prospecting|prospeccion)([^a-z]|$)/;
+const DEFAULT_LABEL = 'Sin clasificar';
 
 const OBJECTIVES = {
   OUTCOME_SALES: 'Ventas',
@@ -485,32 +497,46 @@ function deltaPct(c, p){ if(c == null || p == null || !p) return null; return (c
    Tabla compartida: orden por columna, filtro y paginación (todas las tablas)
    columns: [{ key, label, f?, align?, sortable? }]
    ========================================================================== */
-function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pageSize = PAGE_SIZE, totalRow, emptyText = 'Sin datos para este periodo.', noun = 'filas' }){
-  const st = { rows:[], filter:() => true, sortKey, sortDir, page:1 };
+// tree (opcional): { key:r => id único, children:r => filas hijas, label:r => texto del botón } para filas desplegables.
+function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pageSize = PAGE_SIZE, totalRow, emptyText = 'Sin datos para este periodo.', noun = 'filas', tree = null }){
+  const st = { rows:[], filter:() => true, sortKey, sortDir, page:1, open:new Set() };
   const table = document.getElementById(tableId);
   const pager = pagerId ? document.getElementById(pagerId) : null;
 
   function render(){
     let list = st.rows.filter(st.filter);
     const col = columns.find(c => c.key === st.sortKey);
-    if(col){
-      list = [...list].sort((a, b) => {
-        const va = a[st.sortKey], vb = b[st.sortKey];
-        if(typeof va === 'string' || typeof vb === 'string') return st.sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
-        const na = va == null ? -Infinity : va, nb = vb == null ? -Infinity : vb;
-        return st.sortDir === 'asc' ? na - nb : nb - na;
-      });
-    }
+    const sortFn = (a, b) => {
+      const va = a[st.sortKey], vb = b[st.sortKey];
+      if(typeof va === 'string' || typeof vb === 'string') return st.sortDir === 'asc' ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va));
+      const na = va == null ? -Infinity : va, nb = vb == null ? -Infinity : vb;
+      return st.sortDir === 'asc' ? na - nb : nb - na;
+    };
+    if(col) list = [...list].sort(sortFn);
     const pages = Math.max(1, Math.ceil(list.length / pageSize));
     st.page = Math.min(Math.max(1, st.page), pages);
     const items = list.slice((st.page - 1) * pageSize, st.page * pageSize);
 
     const head = `<thead><tr>${columns.map(c => `<th class="${c.sortable === false ? '' : 'sortable'}" data-key="${c.key}" ${c.key === st.sortKey ? `aria-sort="${st.sortDir === 'asc' ? 'ascending' : 'descending'}"` : ''} style="${c.align === 'left' ? 'text-align:left' : ''}">${c.label}</th>`).join('')}</tr></thead>`;
     const cell = (c, r) => `<td class="${c.align === 'left' ? 'txt' : ''}">${c.f ? c.f(r[c.key], r) : escapeHtml(r[c.key])}</td>`;
-    const body = items.length ? items.map(r => `<tr>${columns.map(c => cell(c, r)).join('')}</tr>`).join('') : `<tr><td colspan="${columns.length}">${emptyText}</td></tr>`;
+    // Fila con su desplegable: el botón va en la primera columna; los hijos se ordenan con la misma columna.
+    const rowHtml = (r, level = 0) => {
+      const kids = tree ? (tree.children(r) || []) : [];
+      const k = tree ? tree.key(r) : null, isOpen = tree && st.open.has(k);
+      const first = columns[0];
+      const firstContent = first.f ? first.f(r[first.key], r) : escapeHtml(r[first.key]);
+      const toggle = !tree ? '' : kids.length
+        ? `<button class="tw" data-tk="${escapeHtml(k)}" aria-expanded="${isOpen}" aria-label="${isOpen ? 'Ocultar' : 'Mostrar'} ${escapeHtml(tree.label ? tree.label(r) : '')}">${isOpen ? '▾' : '▸'}</button>`
+        : '<span class="tw tw-empty"></span>';
+      const firstCell = `<td class="${first.align === 'left' ? 'txt' : ''}"><div class="tcell" style="padding-left:${level * 1.4}rem">${toggle}<div class="tname">${firstContent}</div></div></td>`;
+      const own = `<tr class="lvl${level}">${firstCell}${columns.slice(1).map(c => cell(c, r)).join('')}</tr>`;
+      return own + (isOpen ? [...kids].sort(sortFn).map(ch => rowHtml(ch, level + 1)).join('') : '');
+    };
+    const body = items.length ? items.map(r => rowHtml(r)).join('') : `<tr><td colspan="${columns.length}">${emptyText}</td></tr>`;
     const tot = totalRow && list.length ? totalRow(list) : null;
     const foot = tot ? `<tr class="total">${columns.map((c, i) => i === 0 ? '<td>Total</td>' : `<td class="${c.align === 'left' ? 'txt' : ''}">${tot[c.key] === undefined ? '' : (c.f ? c.f(tot[c.key], tot) : escapeHtml(tot[c.key]))}</td>`).join('')}</tr>` : '';
     table.innerHTML = head + `<tbody>${body}${foot}</tbody>`;
+    table.querySelectorAll('button.tw[data-tk]').forEach(b => b.onclick = () => { const k = b.dataset.tk; st.open.has(k) ? st.open.delete(k) : st.open.add(k); render(); });
     table.querySelectorAll('th.sortable').forEach(th => th.onclick = () => {
       const k = th.dataset.key;
       if(st.sortKey === k) st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
@@ -603,11 +629,18 @@ async function loadAll(range){
    Modelo: normalización y agregados
    ========================================================================== */
 function objectiveLabel(raw){ return OBJECTIVES[raw] || `Otro (${raw || 'sin objetivo'})`; }
-function campaignLabel(id, name){
-  if(CAMPAIGN_OVERRIDES[id]) return CAMPAIGN_OVERRIDES[id];
-  if(RETARGETING_PATTERN.test(name || '')) return 'Retargeting';
+// Misma regla en Meta Ads y Creativos: overrides manuales → "RTG/Retargeting/Remarketing" → "PRO/Prospecting" → Sin clasificar.
+function labelFromNames(names, campaignId){
+  const o = CAMPAIGN_OVERRIDES[String(campaignId)];
+  if(o) return /retarget/i.test(o) ? 'Retargeting' : /prospect/i.test(o) ? 'Prospecting' : o;
+  for(const name of names){
+    const t = normTxt(name);
+    if(RX_RTG.test(t)) return 'Retargeting';
+    if(RX_PRO.test(t)) return 'Prospecting';
+  }
   return DEFAULT_LABEL;
 }
+function campaignLabel(id, name){ return labelFromNames([name], id); }
 
 function normMeta(rows){
   return rows.map(r => ({
@@ -953,10 +986,19 @@ const tblObjetivos = createTable({ tableId:'tblObjetivos', columns:[
   { key:'roas', label:'ROAS', f:xRoas },
 ], sortKey:'spend', pageSize:50 });
 
-const tblCampanas = createTable({ tableId:'tblCampanas', pagerId:'pgCampanas', noun:'campañas', columns:[
-  { key:'campaign', label:'Campaña' },
-  { key:'objective', label:'Objetivo', align:'left', f:v => `<span class="chip">${escapeHtml(v)}</span>` },
-  { key:'label', label:'Etiqueta', align:'left', f:v => `<span class="chip ${v === 'Retargeting' ? 'rtg' : ''}">${escapeHtml(v)}</span>` },
+const labelChip = v => `<span class="chip ${v === 'Retargeting' ? 'rtg' : v === 'Prospecting' ? 'pro' : ''}">${escapeHtml(v)}</span>`;
+const nameCell = (v, r) => {
+  if(r.level === 1) return `<span class="lvl-tag">Conjunto</span>${escapeHtml(v)}`;
+  if(r.level === 2) return `${r.thumbnail ? `<img class="mini-thumb" src="${escapeHtml(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}<span class="lvl-tag">Anuncio</span>${escapeHtml(v)}`;
+  return escapeHtml(v);
+};
+let CAMP_TREE = new Map();   // campaign_id → [conjuntos], cada conjunto con sus anuncios
+const tblCampanas = createTable({ tableId:'tblCampanas', pagerId:'pgCampanas', noun:'campañas',
+  tree:{ key:r => r.treeKey, children:r => r.level === 0 ? (CAMP_TREE.get(r.campaign_id) || []) : (r.children || []), label:r => r.campaign },
+  columns:[
+  { key:'campaign', label:'Campaña / conjunto / anuncio', f:nameCell },
+  { key:'objective', label:'Objetivo', align:'left', f:(v, r) => r.level ? '' : `<span class="chip">${escapeHtml(v)}</span>` },
+  { key:'label', label:'Etiqueta', align:'left', f:v => labelChip(v) },
   { key:'spend', label:'Inversión', f:money },
   { key:'impressions', label:'Impresiones', f:int },
   { key:'ctr', label:'CTR', f:pct },
@@ -1000,7 +1042,24 @@ function renderMeta(S, range){
     if(!byCamp.has(r.campaign_id)) byCamp.set(r.campaign_id, { campaign_id:r.campaign_id, campaign:r.campaign, objective:r.objective, label:r.label, ...metaEmpty() });
     metaAdd(byCamp.get(r.campaign_id), r);
   });
-  const camps = [...byCamp.values()].map(metaDerive).filter(x => x.spend > 0 || x.impressions > 0);
+  const camps = [...byCamp.values()].map(metaDerive).filter(x => x.spend > 0 || x.impressions > 0)
+    .map(x => ({ ...x, level:0, treeKey:`c:${x.campaign_id}` }));
+
+  // Conjuntos y anuncios del rango (vista por anuncio de Meta). Las métricas se suman por conjunto.
+  CAMP_TREE = new Map();
+  (S.adsRows || []).forEach(a => {
+    const cid = String(a.campaign_id);
+    if(!CAMP_TREE.has(cid)) CAMP_TREE.set(cid, new Map());
+    const sets = CAMP_TREE.get(cid), sid = String(a.adset_id || a.adset || 'sin-conjunto');
+    if(!sets.has(sid)) sets.set(sid, { campaign_id:cid, campaign:a.adset || '(sin nombre)', objective:objectiveLabel(a.objective), label:labelFromNames([a.adset, a.campaign], cid), level:1, treeKey:`s:${cid}:${sid}`, children:[], ...metaEmpty() });
+    const ad = { spend:+a.spend || 0, impressions:+a.impressions || 0, clicks:+a.link_clicks || 0, add_to_cart:+a.add_to_cart || 0, checkouts:+a.checkouts || 0, purchases:+a.purchases || 0, value:+a.purchase_value || 0 };
+    const set = sets.get(sid);
+    metaAdd(set, ad);
+    if(ad.spend > 0 || ad.impressions > 0) set.children.push(metaDerive({ ...ad, campaign:a.ad || '(sin nombre)', objective:set.objective, label:labelFromNames([a.ad, a.adset, a.campaign], cid), level:2, treeKey:`a:${a.ad_id}`, thumbnail:a.thumbnail }));
+  });
+  for(const [cid, sets] of CAMP_TREE) CAMP_TREE.set(cid, [...sets.values()].filter(x => x.spend > 0 || x.impressions > 0).map(x => ({ ...metaDerive(x), children:x.children })));
+  // Para buscar por nombre de conjunto o anuncio además del de la campaña
+  camps.forEach(x => { x.searchText = normTxt([x.campaign, ...(CAMP_TREE.get(String(x.campaign_id)) || []).flatMap(s => [s.campaign, ...s.children.map(a => a.campaign)])].join(' ')); });
 
   // Por objetivo
   const byObj = new Map();
@@ -1019,7 +1078,8 @@ function fillSelect(id, values, allLabel){
 }
 function applyCampaignFilter(){
   const o = document.getElementById('fObjetivo').value, l = document.getElementById('fEtiqueta').value, q = document.getElementById('fCampana').value.trim().toLowerCase();
-  tblCampanas.setFilter(x => (!o || x.objective === o) && (!l || x.label === l) && (!q || x.campaign.toLowerCase().includes(q)));
+  const qn = normTxt(q);
+  tblCampanas.setFilter(x => (!o || x.objective === o) && (!l || x.label === l) && (!qn || (x.searchText || normTxt(x.campaign)).includes(qn)));
 }
 ['fObjetivo','fEtiqueta'].forEach(id => document.getElementById(id).addEventListener('change', applyCampaignFilter));
 document.getElementById('fCampana').addEventListener('input', applyCampaignFilter);
@@ -1028,19 +1088,8 @@ document.getElementById('fCampana').addEventListener('input', applyCampaignFilte
    Pestaña: Creativos Meta (rendimiento por anuncio y tipo de campaña)
    ========================================================================== */
 const AD_TYPES = ['Prospecting', 'Retargeting', 'Sin clasificar'];
-const RX_RTG = /(^|[^a-z])(rtg|retargeting|remarketing|rmkt)([^a-z]|$)/;
-const RX_PRO = /(^|[^a-z])(pro|prosp|prospecting|prospeccion)([^a-z]|$)/;
-function adType(r){
-  const o = CAMPAIGN_OVERRIDES[String(r.campaign_id)];
-  if(o) return /retarget/i.test(o) ? 'Retargeting' : /prospect/i.test(o) ? 'Prospecting' : o;
-  // Primero el nombre del anuncio; si no indica nada, el conjunto y luego la campaña.
-  for(const name of [r.ad, r.adset, r.campaign]){
-    const t = normTxt(name);
-    if(RX_RTG.test(t)) return 'Retargeting';
-    if(RX_PRO.test(t)) return 'Prospecting';
-  }
-  return 'Sin clasificar';
-}
+// Primero el nombre del anuncio; si no indica nada, el conjunto y luego la campaña.
+function adType(r){ return labelFromNames([r.ad, r.adset, r.campaign], r.campaign_id); }
 const AD_METRICS = ['spend','impressions','landing_page_views','link_clicks','purchases','value'];
 function adDerive(t){ return { ...t, cpv:div(t.spend, t.landing_page_views), roas:div(t.value, t.spend), cpa:div(t.spend, t.purchases) }; }
 
@@ -1468,7 +1517,7 @@ function demoData(since, until, range){
   const adsRows = adNames.map(([ad, campaign, cid], i) => {
     const spend = Math.round(300 + rnd() * 9000), reach = Math.round(spend * (6 + rnd() * 8)), freq = 1.2 + rnd() * 2, imp = Math.round(reach * freq);
     const lpv = Math.round(imp * (0.004 + rnd() * 0.01)), pur = Math.round(lpv * (0.03 + rnd() * 0.07));
-    return { ad_id:String(i), ad, adset:'', campaign, campaign_id:cid, spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:null };
+    return { ad_id:String(i), ad, adset_id:`${cid}-${i % 2}`, adset:`${campaign} | Conjunto ${i % 2 ? 'Intereses' : 'Lookalike 2%'}`, campaign, campaign_id:cid, objective:'OUTCOME_SALES', link_clicks:Math.round(spend * (0.6 + rnd())), add_to_cart:0, checkouts:0, spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:null };
   });
   return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
