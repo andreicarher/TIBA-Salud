@@ -123,6 +123,38 @@ async function fetchMonthly(since, until, token) {
   return { source: "meta", view: "monthly", since, until, rows, fetchedAt: new Date().toISOString() };
 }
 
+const CREATIVE_FIELDS = "creative{thumbnail_url,image_url,object_type}";
+// Mismo campo pidiendo una miniatura de 240 px (la de 64 px por defecto se ve borrosa)
+const CREATIVE_FIELDS_HD = "creative.thumbnail_width(240).thumbnail_height(240){thumbnail_url,image_url,object_type}";
+function readCreative(ad) {
+  const c = ad?.creative || {};
+  // En imágenes se usa la original (nítida); en videos y carruseles, la portada.
+  return { thumbnail: c.image_url || c.thumbnail_url || null, image: c.image_url || c.thumbnail_url || null, type: c.object_type || null };
+}
+async function fetchThumbnails(ids, token) {
+  const thumbs = {};
+  let error = null;
+  const q = (fields) => `fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`;
+  for (let i = 0; i < ids.length; i += 50) {
+    const chunk = ids.slice(i, i + 50);
+    try {
+      const json = await metaGet(`${BASE}/?ids=${chunk.join(",")}&${q(CREATIVE_FIELDS_HD)}`);
+      for (const [adId, ad] of Object.entries(json)) thumbs[adId] = readCreative(ad);
+    } catch (err) {
+      error = err.message;
+      // Respaldo: uno por uno, 6 a la vez; un anuncio que falle no afecta a los demás.
+      for (let j = 0; j < chunk.length; j += 6) {
+        await Promise.all(chunk.slice(j, j + 6).map(async (adId) => {
+          try { thumbs[adId] = readCreative(await metaGet(`${BASE}/${adId}?${q(CREATIVE_FIELDS)}`)); }
+          catch (e) { error = e.message; }
+        }));
+      }
+    }
+  }
+  const found = Object.values(thumbs).filter((t) => t.thumbnail).length;
+  return { thumbs, error: found ? null : error };
+}
+
 // Creativos: totales del rango por anuncio (sin time_increment, porque el alcance
 // y la frecuencia no se pueden sumar día por día) + miniatura del creativo.
 async function fetchAds(since, until, token) {
@@ -161,23 +193,12 @@ async function fetchAds(since, until, token) {
     }
   }
 
-  // Miniaturas: hasta 50 anuncios por llamada. Si falla, el dashboard muestra un marcador.
+  // Miniaturas. Meta rechaza un lote completo si uno de los anuncios ya no existe o no es
+  // accesible, así que se intenta en lote y, si falla, anuncio por anuncio.
   const ids = [...new Set(rows.map((r) => r.ad_id))];
-  const thumbs = {};
-  for (let i = 0; i < ids.length; i += 50) {
-    const chunk = ids.slice(i, i + 50);
-    try {
-      const json = await metaGet(`${BASE}/?ids=${chunk.join(",")}&fields=${encodeURIComponent("creative.thumbnail_width(240).thumbnail_height(240){thumbnail_url,image_url,object_type}")}&access_token=${encodeURIComponent(token)}`);
-      for (const [adId, ad] of Object.entries(json)) {
-        const c = ad?.creative || {};
-        thumbs[adId] = { thumbnail: c.thumbnail_url || c.image_url || null, type: c.object_type || null };
-      }
-    } catch (err) {
-      console.error("Meta thumbnails:", err.message);
-    }
-  }
-  for (const r of rows) Object.assign(r, thumbs[r.ad_id] || { thumbnail: null, type: null });
-  return { source: "meta", view: "ads", since, until, rows, fetchedAt: new Date().toISOString() };
+  const { thumbs, error: thumbsError } = await fetchThumbnails(ids, token);
+  for (const r of rows) Object.assign(r, thumbs[r.ad_id] || { thumbnail: null, image: null, type: null });
+  return { source: "meta", view: "ads", since, until, rows, thumbsError, fetchedAt: new Date().toISOString() };
 }
 
 // Audiencias: una llamada por breakdown, a nivel cuenta, totales del rango.
