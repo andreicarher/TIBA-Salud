@@ -162,9 +162,17 @@
   .chips button{ font:inherit; font-size:.78rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:.5rem 1rem; border-radius:999px; border:1px solid var(--borde); background:var(--blanco); color:var(--texto); cursor:pointer; }
   .chips button[aria-pressed="true"]{ background:var(--marino); border-color:var(--marino); color:var(--blanco); }
   .chips button small{ font-weight:500; opacity:.75; margin-left:.3rem; letter-spacing:0; }
-  .tbl-ads td:first-child, .tbl-ads th:first-child{ min-width:76px; width:76px; }
-  .thumb{ width:56px; height:56px; border-radius:6px; object-fit:cover; display:block; background:var(--fondo); border:1px solid var(--borde); }
+  .tbl-ads td:first-child, .tbl-ads th:first-child{ min-width:96px; width:96px; }
+  .thumb-btn{ padding:0; border:0; background:none; cursor:zoom-in; display:block; border-radius:6px; }
+  .thumb-btn:focus-visible{ outline:2px solid var(--naranja); outline-offset:2px; }
+  .thumb{ width:72px; height:72px; border-radius:6px; object-fit:cover; display:block; background:var(--fondo); border:1px solid var(--borde); }
   .thumb.ph{ display:flex; align-items:center; justify-content:center; color:var(--texto-suave); font-size:.62rem; text-align:center; line-height:1.2; }
+  dialog.viewer{ border:0; border-radius:10px; padding:0; max-width:min(92vw, 720px); background:var(--blanco); box-shadow:0 20px 60px rgba(0,0,0,.35); }
+  dialog.viewer::backdrop{ background:rgba(38,40,46,.75); }
+  dialog.viewer img{ display:block; max-width:100%; max-height:75vh; margin:0 auto; background:var(--fondo); }
+  dialog.viewer .vbar{ display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.75rem 1rem; font-size:.85rem; color:var(--marino); font-weight:600; }
+  dialog.viewer .vbar small{ display:block; font-weight:400; color:var(--texto-suave); }
+  dialog.viewer button{ font:inherit; border:1px solid var(--borde); background:var(--blanco); border-radius:6px; padding:.35rem .8rem; cursor:pointer; color:var(--marino); }
   .concept{ max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--marino); font-weight:600; text-align:left; }
   .concept-sub{ font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--texto-suave); text-align:left; margin-top:.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px; }
   .tgrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:var(--blanco); border:1px solid var(--borde); }
@@ -403,6 +411,11 @@
   </section>
 </main>
 
+<dialog class="viewer" id="viewer" aria-label="Vista ampliada del creativo">
+  <img id="viewerImg" alt="">
+  <div class="vbar"><div><span id="viewerTitle"></span><small id="viewerSub"></small></div><button type="button" id="viewerClose">Cerrar</button></div>
+</dialog>
+
 <footer><div id="footerInfo">Tiba Salud</div></footer>
 
 <script>
@@ -582,7 +595,7 @@ async function loadShopInfo(){
 }
 
 // Desglose mensual Ene → hoy: no depende del rango, se pide una vez por carga de página.
-let MONTHLY_PROMISE = null;
+let MONTHLY_PROMISE = null, MONTHLY_DATA = null;
 function loadMonthly(){
   if(!MONTHLY_PROMISE){
     const t = todayStr(), q = `view=monthly&since=${t.slice(0,4)}-01-01&until=${t}`;
@@ -612,7 +625,6 @@ async function loadAll(range){
     ads: getJSON(`/api/meta-ads?view=ads&${cur}`),
     ga4: getJSON(`/api/ga4?${cur}`),
     checkouts: getJSON(`/api/shopify?view=checkouts&${cur}`),
-    monthly: loadMonthly(),
   };
   const keys = Object.keys(jobs);
   const settled = await Promise.allSettled(Object.values(jobs));
@@ -856,8 +868,8 @@ function renderMensual(M){
   const t = todayStr(), y = +t.slice(0, 4), lastM = +t.slice(5, 7);
   const months = Array.from({ length:lastM }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`);
   const ok = M && (M.shopify || M.meta || M.google);
-  const missing = M ? [!M.shopify && 'Shopify', !M.meta && 'Meta', !M.google && 'Google'].filter(Boolean) : ['todas las fuentes'];
-  notice('mensualNotice', missing.length ? `Sin datos mensuales de ${missing.join(', ')}; la gráfica está incompleta.` : '');
+  const missing = M ? [!M.shopify && 'Shopify', !M.meta && 'Meta', !M.google && 'Google'].filter(Boolean) : [];
+  notice('mensualNotice', !M ? 'Cargando el desglose mensual (trae todos los pedidos del año, puede tardar unos segundos)…' : missing.length ? `Sin datos mensuales de ${missing.join(', ')}; la gráfica está incompleta.` : '');
   document.getElementById('mensualTitle').textContent = `Desglose mensual (Ene ${y} → hoy)`;
   if(!ok){ charts.mensual?.destroy(); return; }
 
@@ -1095,8 +1107,21 @@ function adDerive(t){ return { ...t, cpv:div(t.spend, t.landing_page_views), roa
 
 let adsFilter = 'Todos';
 const thumbCell = (v, r) => v
-  ? `<img class="thumb" src="${escapeHtml(v)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;thumb ph&quot;>Sin vista previa</div>'">`
+  ? `<button type="button" class="thumb-btn" data-ad="${escapeHtml(r.ad_id)}" aria-label="Ampliar ${escapeHtml(r.ad)}"><img class="thumb" src="${escapeHtml(v)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('button').outerHTML='<div class=&quot;thumb ph&quot;>Sin vista previa</div>'"></button>`
   : '<div class="thumb ph">Sin vista previa</div>';
+// Visor: abre la imagen completa (o la miniatura grande en videos) al hacer clic en la miniatura
+document.getElementById('tblAds').addEventListener('click', e => {
+  const b = e.target.closest('.thumb-btn'); if(!b) return;
+  const r = (STATE.adsRows || []).find(x => String(x.ad_id) === b.dataset.ad); if(!r) return;
+  const img = document.getElementById('viewerImg');
+  img.src = r.image || r.thumbnail; img.referrerPolicy = 'no-referrer';
+  img.onerror = () => { if(r.thumbnail && img.src !== r.thumbnail) img.src = r.thumbnail; };
+  document.getElementById('viewerTitle').textContent = r.ad;
+  document.getElementById('viewerSub').textContent = `${adType(r)} · ${r.campaign}${r.type === 'VIDEO' ? ' · video (se muestra su portada)' : ''}`;
+  document.getElementById('viewer').showModal();
+});
+document.getElementById('viewerClose').addEventListener('click', () => document.getElementById('viewer').close());
+document.getElementById('viewer').addEventListener('click', e => { if(e.target.id === 'viewer') e.target.close(); });
 const tblAds = createTable({ tableId:'tblAds', pagerId:'pgAds', noun:'anuncios', sortKey:'roas', columns:[
   { key:'thumbnail', label:'Miniatura', sortable:false, f:thumbCell },
   { key:'ad', label:'Concepto', align:'left', f:(v, r) => r.isTotal ? '' : `<div class="concept" title="${escapeHtml(v)}">${escapeHtml(v)}</div><div class="concept-sub" title="${escapeHtml(r.campaign)}">${escapeHtml(r.type)} · ${escapeHtml(r.campaign)}</div>` },
@@ -1128,7 +1153,8 @@ function renderCreativos(S, range){
     notice('adsNotice', `Meta no devolvió el rendimiento por anuncio: ${escapeHtml(S.errors.ads || '')}`);
     document.getElementById('adsTipos').innerHTML = ''; document.getElementById('adsChips').innerHTML = ''; tblAds.setRows([]); return;
   }
-  notice('adsNotice', '');
+  const noThumbs = S.adsRows.length && !S.adsRows.some(r => r.thumbnail);
+  notice('adsNotice', noThumbs ? `Meta no devolvió las miniaturas de los anuncios${S.adsThumbsError ? `: ${escapeHtml(S.adsThumbsError)}` : '.'} Revisa que el token tenga acceso de lectura a los creativos de la cuenta.` : '');
   const rows = S.adsRows.filter(r => r.spend > 0 || r.impressions > 0).map(r => adDerive({
     ...r, value:+r.purchase_value || 0, type:adType(r),
   }));
@@ -1412,11 +1438,12 @@ async function refresh(){
     geo: d.shopify ? d.shopify.geo : null,
     ga4: d.ga4 || null,
     checkouts: d.checkouts || null,
-    monthly: d.monthly || null,
+    monthly: MONTHLY_DATA,
     metaRows: d.meta ? normMeta(d.meta.rows || []) : null,
     googleRows: d.google ? normGoogle(d.google.rows || []) : null,
     audRows: d.audiences ? d.audiences.rows : null,
     adsRows: d.ads ? d.ads.rows : null,
+    adsThumbsError: d.ads ? d.ads.thumbsError : null,
     errors: d.errors,
   };
   window.RAW_ORDERS = STATE.orders || []; window.RAW_META_ROWS = STATE.metaRows || []; window.RAW_ADS = STATE.adsRows || [];
@@ -1424,6 +1451,9 @@ async function refresh(){
   window.STATE = STATE;
 
   renderStatus(d.status, d.errors);
+  // El mensual (Ene → hoy) tarda más porque trae todos los pedidos del año: se dibuja cuando llega, sin frenar lo demás.
+  if(!DEMO && !MONTHLY_DATA) loadMonthly().then(m => { MONTHLY_DATA = m; STATE.monthly = m; window.DATA.monthly = m; renderMensual(m); });
+  if(DEMO) STATE.monthly = d.monthly;
   renderResumen(STATE, range);
   renderMeta(STATE, range);
   renderCreativos(STATE, range);
@@ -1517,7 +1547,7 @@ function demoData(since, until, range){
   const adsRows = adNames.map(([ad, campaign, cid], i) => {
     const spend = Math.round(300 + rnd() * 9000), reach = Math.round(spend * (6 + rnd() * 8)), freq = 1.2 + rnd() * 2, imp = Math.round(reach * freq);
     const lpv = Math.round(imp * (0.004 + rnd() * 0.01)), pur = Math.round(lpv * (0.03 + rnd() * 0.07));
-    return { ad_id:String(i), ad, adset_id:`${cid}-${i % 2}`, adset:`${campaign} | Conjunto ${i % 2 ? 'Intereses' : 'Lookalike 2%'}`, campaign, campaign_id:cid, objective:'OUTCOME_SALES', link_clicks:Math.round(spend * (0.6 + rnd())), add_to_cart:0, checkouts:0, spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:null };
+    return { ad_id:String(i), ad, adset_id:`${cid}-${i % 2}`, adset:`${campaign} | Conjunto ${i % 2 ? 'Intereses' : 'Lookalike 2%'}`, campaign, campaign_id:cid, objective:'OUTCOME_SALES', link_clicks:Math.round(spend * (0.6 + rnd())), add_to_cart:0, checkouts:0, spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:i % 4 === 3 ? null : `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><rect width='240' height='240' fill='${['#21362C','#6F1D46','#00744B','#B21E29'][i % 4]}'/><text x='120' y='130' font-family='sans-serif' font-size='22' fill='white' text-anchor='middle'>Ejemplo ${i + 1}</text></svg>`)}`, image:null, type:i % 3 ? 'PHOTO' : 'VIDEO' };
   });
   return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
