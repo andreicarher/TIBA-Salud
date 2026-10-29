@@ -179,6 +179,9 @@
   .tgrid .kcell .kvalue{ font-size:1.45rem; }
   .tgrid .tline{ font-size:.78rem; color:var(--texto-suave); display:flex; justify-content:space-between; gap:.5rem; padding:.15rem 0; }
   .tgrid .tline b{ color:var(--marino); font-variant-numeric:tabular-nums; }
+  .grid-fun{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; }
+  .grid-fun h3{ font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--acero); margin:0 0 .6rem; }
+  .fun-top .ab{ color:var(--baja); }
   .pdot{ display:inline-block; width:.62rem; height:.62rem; border-radius:50%; margin-right:.5rem; vertical-align:.05rem; flex:none; }
   .empty{ font-size:.85rem; color:var(--texto-suave); padding:.5rem 0; }
 
@@ -212,6 +215,7 @@
     <button role="tab" data-tab="google" aria-selected="false">Google Ads</button>
     <button role="tab" data-tab="audiencias" aria-selected="false">Audiencias</button>
     <button role="tab" data-tab="productos" aria-selected="false">Productos y tienda</button>
+    <button role="tab" data-tab="web" aria-selected="false">Web (GA4)</button>
   </nav>
 </header>
 
@@ -408,6 +412,68 @@
       </div>
     </div>
     <p class="note">Las ventas por producto reparten los descuentos del pedido entre sus productos. La suma puede diferir unos pesos de las ventas netas del Resumen por redondeo.</p>
+  </section>
+  <!-- ===================== WEB (GA4) ===================== -->
+  <section class="stack" data-panel="web" role="tabpanel" hidden>
+    <div class="notice" id="webNotice" hidden></div>
+
+    <div class="sec">
+      <div class="eyebrow">KPIs web</div>
+      <div class="sec-head"><h2 class="sec-title">Indicadores del sitio</h2><span class="sec-meta" id="webMeta">Fuente: Google Analytics 4</span></div>
+      <div class="kgrid" id="kpisWeb"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Tendencia</div>
+      <div class="sec-head"><h2 class="sec-title">Sesiones y tasa de conversión por día</h2></div>
+      <div class="panel"><div class="chart-box"><canvas id="chartWeb" aria-label="Sesiones y tasa de conversión por día"></canvas></div></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Adquisición</div>
+      <div class="sec-head"><h2 class="sec-title">Canales</h2><span class="sec-meta">Agrupación estándar de canales de GA4</span></div>
+      <div class="panel"><div class="table-wrap"><table id="tblCanales"></table></div></div>
+      <div class="panel" style="margin-top:1rem">
+        <div class="table-tools"><input type="search" id="fFuente" placeholder="Buscar fuente / medio" aria-label="Buscar fuente o medio"></div>
+        <div class="table-wrap"><table id="tblFuentes"></table></div>
+        <div class="pager" id="pgFuentes"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Embudo</div>
+      <div class="sec-head"><h2 class="sec-title">Embudo de compra</h2><span class="sec-meta">Sesiones en las que ocurrió cada paso. Entre paréntesis, el % que abandona respecto al paso anterior</span></div>
+      <div class="panel" id="funnelWeb"></div>
+      <div class="grid-fun" id="funnelDev" style="margin-top:1rem"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Dispositivos</div>
+      <div class="sec-head"><h2 class="sec-title">Móvil vs. escritorio</h2></div>
+      <div class="panel"><div class="table-wrap"><table id="tblDevices"></table></div></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Contenido</div>
+      <div class="sec-head"><h2 class="sec-title">Páginas de entrada</h2><span class="sec-meta">Primera página que vio cada sesión</span></div>
+      <div class="panel"><div class="table-wrap"><table id="tblLanding"></table></div><div class="pager" id="pgLanding"></div></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Catálogo</div>
+      <div class="sec-head"><h2 class="sec-title">Productos en la web</h2><span class="sec-meta">Interés vs. compra por producto, según GA4</span></div>
+      <div class="panel">
+        <div class="table-tools"><input type="search" id="fWebProd" placeholder="Buscar producto" aria-label="Buscar producto"></div>
+        <div class="table-wrap"><table id="tblWebProd"></table></div><div class="pager" id="pgWebProd"></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Geografía</div>
+      <div class="sec-head"><h2 class="sec-title">Estados</h2><span class="sec-meta">Sesiones desde México por estado, según GA4</span></div>
+      <div class="panel"><div class="table-wrap"><table id="tblRegiones"></table></div><div class="pager" id="pgRegiones"></div></div>
+      <p class="note">Las compras e ingresos de esta pestaña son los que registra GA4 en el sitio: no incluyen renovaciones de suscripción y pueden diferir de las ventas netas de Shopify.</p>
+    </div>
   </section>
 </main>
 
@@ -1404,6 +1470,145 @@ function renderProductos(S, range){
 document.getElementById('fProducto').addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); tblProductos.setFilter(p => !q || p.title.toLowerCase().includes(q)); });
 
 /* ==========================================================================
+   Pestaña: Web (GA4)
+   ========================================================================== */
+const CHANNEL_ES = { 'Paid Social':'Social pagado', 'Organic Social':'Social orgánico', 'Paid Search':'Búsqueda pagada', 'Organic Search':'Búsqueda orgánica',
+  'Direct':'Directo', 'Email':'Email', 'Referral':'Referidos', 'Unassigned':'Sin asignar', 'Cross-network':'Cross-network (PMax)', 'Paid Shopping':'Shopping pagado',
+  'Organic Shopping':'Shopping orgánico', 'Display':'Display', 'Paid Video':'Video pagado', 'Organic Video':'Video orgánico', 'SMS':'SMS', 'Affiliates':'Afiliados', 'Paid Other':'Otro pagado' };
+const DEVICE_ES = { mobile:'Móvil', desktop:'Escritorio', tablet:'Tablet', 'smart tv':'Smart TV' };
+const fmtPP = v => `${fmt1.format(v * 100)} pp`;
+const dur = s => { if(s == null || !isFinite(s)) return '—'; const m = Math.floor(s / 60), r = Math.round(s % 60); return m ? `${m} min ${r} s` : `${r} s`; };
+function webDerive(r){ return { ...r, share:r.share, cr:div(r.purchases, r.sessions), rps:div(r.revenue, r.sessions), atcRate:div(r.addToCarts, r.sessions) }; }
+const WEB_COLS = (first) => [
+  { key:'name', label:first, f:v => escapeHtml(v) },
+  { key:'sessions', label:'Sesiones', f:int },
+  { key:'share', label:'% sesiones', f:pct1 },
+  { key:'engagementRate', label:'Tasa de interacción', f:pct1 },
+  { key:'addToCarts', label:'Añadidos al carrito', f:int },
+  { key:'purchases', label:'Compras', f:int },
+  { key:'cr', label:'Tasa de conversión', f:v => v == null ? '—' : `${fmtDec.format(v * 100)}%` },
+  { key:'revenue', label:'Ingreso', f:money },
+  { key:'rps', label:'Ingreso por sesión', f:money2 },
+];
+const webTotal = list => { const t = list.reduce((a, r) => { a.sessions += r.sessions; a.addToCarts += r.addToCarts; a.purchases += r.purchases; a.revenue += r.revenue; return a; }, { sessions:0, addToCarts:0, purchases:0, revenue:0 }); return { ...webDerive(t), name:undefined, share:1, engagementRate:undefined }; };
+const tblCanales = createTable({ tableId:'tblCanales', columns:WEB_COLS('Canal'), sortKey:'sessions', pageSize:30, totalRow:webTotal });
+const tblFuentes = createTable({ tableId:'tblFuentes', pagerId:'pgFuentes', noun:'fuentes', columns:WEB_COLS('Fuente / medio'), sortKey:'sessions' });
+const tblDevices = createTable({ tableId:'tblDevices', columns:[...WEB_COLS('Dispositivo').slice(0, 4), { key:'avgEng', label:'Interacción media', f:dur }, ...WEB_COLS('').slice(4)], sortKey:'sessions', pageSize:10 });
+const tblLanding = createTable({ tableId:'tblLanding', pagerId:'pgLanding', noun:'páginas', columns:[{ key:'name', label:'Página de entrada', f:v => `<span title="${escapeHtml(v)}" style="display:inline-block;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom">${escapeHtml(v === '(not set)' ? 'Sin dato' : v)}</span>` }, ...WEB_COLS('').slice(1)], sortKey:'sessions' });
+const tblRegiones = createTable({ tableId:'tblRegiones', pagerId:'pgRegiones', noun:'estados', columns:WEB_COLS('Estado'), sortKey:'sessions', pageSize:10 });
+const tblWebProd = createTable({ tableId:'tblWebProd', pagerId:'pgWebProd', noun:'productos', sortKey:'views', columns:[
+  { key:'name', label:'Producto', f:v => `${productDot(v)}${escapeHtml(v)}` },
+  { key:'views', label:'Vistas', f:int },
+  { key:'addToCarts', label:'Añadidos al carrito', f:int },
+  { key:'purchased', label:'Unidades compradas', f:int },
+  { key:'viewToCart', label:'Vista → carrito', f:pct1 },
+  { key:'cartToBuy', label:'Carrito → compra', f:pct1 },
+  { key:'revenue', label:'Ingreso', f:money },
+]});
+document.getElementById('fFuente').addEventListener('input', e => { const q = normTxt(e.target.value.trim()); tblFuentes.setFilter(r => !q || normTxt(r.name).includes(q)); });
+document.getElementById('fWebProd').addEventListener('input', e => { const q = normTxt(e.target.value.trim()); tblWebProd.setFilter(r => !q || normTxt(r.name).includes(q)); });
+
+let WEB_SEQ = 0;
+async function loadWeb(range){
+  const seq = ++WEB_SEQ, prev = previousRange(range);
+  notice('webNotice', 'Cargando datos de GA4…');
+  let w = null, err = null;
+  try {
+    w = DEMO ? demoWeb(range) : await getJSON(`/api/ga4?view=web&since=${range.start}&until=${range.end}&prevSince=${prev.start}&prevUntil=${prev.end}`);
+  } catch(e){ err = e.message; }
+  if(seq !== WEB_SEQ) return;
+  STATE.web = w; window.DATA.web = w;
+  renderWeb(w, err, range);
+}
+
+function renderWeb(w, err, range){
+  document.getElementById('webMeta').textContent = `Fuente: Google Analytics 4 · ${range.start} → ${range.end}`;
+  if(!w){
+    notice('webNotice', `GA4 no respondió: ${escapeHtml(err || '')}`);
+    document.getElementById('kpisWeb').innerHTML = ''; document.getElementById('funnelWeb').innerHTML = ''; document.getElementById('funnelDev').innerHTML = '';
+    [tblCanales, tblFuentes, tblDevices, tblLanding, tblRegiones, tblWebProd].forEach(t => t.setRows([])); charts.web?.destroy(); return;
+  }
+  notice('webNotice', '');
+  const c = w.kpi.cur || {}, p = w.kpi.prev || {}, fc = w.funnel.cur || {}, fp = w.funnel.prev || {};
+  const fs = (f, ev) => f[ev]?.sessions ?? 0;
+  const K = (label, cv, pv, fmt, o = {}) => ({ label, value:fmt(cv), delta:kDelta(cv, pv, o.dfmt || fmt, o.lower), hero:o.hero });
+  const rate = (a, b) => div(a, b);
+  const items = [
+    K('Sesiones', c.sessions, p.sessions, int),
+    K('Usuarios', c.users, p.users, int),
+    K('% usuarios nuevos', rate(c.newUsers, c.users), rate(p.newUsers, p.users), pct1, { dfmt:fmtPP }),
+    K('Tasa de interacción', c.engagementRate, p.engagementRate, pct1, { dfmt:fmtPP }),
+    K('Interacción media por sesión', rate(c.engagementSeconds, c.sessions), rate(p.engagementSeconds, p.sessions), dur),
+    K('Páginas por sesión', rate(c.pageViews, c.sessions), rate(p.pageViews, p.sessions), v => v == null ? '—' : fmtDec.format(v)),
+    K('Tasa de conversión', rate(c.purchases, c.sessions), rate(p.purchases, p.sessions), v => v == null ? '—' : `${fmtDec.format(v * 100)}%`, { dfmt:fmtPP, hero:true }),
+    K('Tasa de añadido al carrito', rate(fs(fc, 'add_to_cart'), c.sessions), rate(fs(fp, 'add_to_cart'), p.sessions), pct1, { dfmt:fmtPP }),
+    K('Abandono de carrito', fs(fc, 'add_to_cart') ? 1 - fs(fc, 'begin_checkout') / fs(fc, 'add_to_cart') : null, fs(fp, 'add_to_cart') ? 1 - fs(fp, 'begin_checkout') / fs(fp, 'add_to_cart') : null, pct1, { dfmt:fmtPP, lower:true }),
+    K('Ingreso por sesión', rate(c.revenue, c.sessions), rate(p.revenue, p.sessions), money2),
+  ];
+  document.getElementById('kpisWeb').innerHTML = items.map(k => `<div class="kcell${k.hero ? ' hero' : ''}"><div class="klabel">${k.label}</div><div class="kvalue">${k.value}</div>${k.delta}</div>`).join('');
+
+  // Diario: sesiones (barras) + tasa de conversión (línea)
+  const font = { family:css('--font'), size:11 };
+  const days = w.daily || [];
+  charts.web?.destroy();
+  charts.web = new Chart(document.getElementById('chartWeb'), {
+    data:{ labels:days.map(d => { const x = parseLocalDate(d.date); return `${x.getDate()} ${MESES[x.getMonth()]}`; }), datasets:[
+      { type:'line', label:'Tasa de conversión', yAxisID:'y1', data:days.map(d => d.sessions ? +(d.purchases / d.sessions * 100).toFixed(2) : null), borderColor:css('--naranja'), backgroundColor:css('--naranja'), borderWidth:2.5, pointRadius:days.length > 40 ? 0 : 3, cubicInterpolationMode:'monotone', order:0 },
+      { type:'bar', label:'Sesiones', yAxisID:'y', data:days.map(d => d.sessions), backgroundColor:css('--acero'), borderRadius:2, order:1 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ position:'top', align:'end', labels:{ font, usePointStyle:true, boxWidth:8 } },
+        tooltip:{ callbacks:{ label:x => x.dataset.yAxisID === 'y1' ? ` Conversión: ${fmtDec.format(x.parsed.y)}%` : ` Sesiones: ${int(x.parsed.y)}` } } },
+      scales:{ x:{ grid:{ display:false }, ticks:{ font, maxRotation:0, autoSkip:true } },
+        y:{ beginAtZero:true, grid:{ color:css('--borde') }, title:{ display:true, text:'Sesiones', font }, ticks:{ font } },
+        y1:{ position:'right', beginAtZero:true, grid:{ display:false }, title:{ display:true, text:'Conversión', font }, ticks:{ font, callback:v => `${v}%` } } } },
+  });
+
+  // Tablas
+  const withShare = (list, total) => list.map(r => webDerive({ ...r, share:div(r.sessions, total) }));
+  const totalS = c.sessions || 0;
+  tblCanales.setRows(withShare((w.channels || []).map(r => ({ ...r, name:CHANNEL_ES[r.name] || r.name })), totalS));
+  tblFuentes.setRows(withShare(w.sources || [], totalS));
+  tblDevices.setRows(withShare((w.devices || []).map(r => ({ ...r, name:DEVICE_ES[r.name] || r.name, avgEng:div(r.engagementSeconds, r.sessions) })), totalS));
+  tblLanding.setRows(withShare(w.landing || [], totalS));
+  tblRegiones.setRows(withShare(w.regions || [], (w.regions || []).reduce((a, r) => a + r.sessions, 0)));
+  tblWebProd.setRows((w.products || []).filter(r => r.name && r.name !== '(not set)').map(r => ({ ...r, viewToCart:div(r.addToCarts, r.views), cartToBuy:div(r.purchased, r.addToCarts) })));
+
+  // Embudos
+  const funnelHtml = (total, f) => {
+    const steps = [['Sesiones', total], ['Vieron un producto', f.view_item], ['Añadieron al carrito', f.add_to_cart], ['Iniciaron el checkout', f.begin_checkout], ['Compraron', f.purchase]];
+    const max = Math.max(total || 0, 1);
+    return steps.map(([label, v], i) => {
+      v = v || 0; const pv = i ? (steps[i - 1][1] || 0) : null;
+      const rateTxt = i && pv ? `<small>${pct1(v / pv)} continúa <span class="ab">(${pct1(1 - v / pv)} abandona)</span></small>` : '';
+      return `<div class="fun-row"><div class="fun-top"><span>${label}</span><span><b>${int(v)}</b>${rateTxt}</span></div><div class="fun-bar"><i style="width:${Math.max(0.5, v / max * 100)}%"></i></div></div>`;
+    }).join('');
+  };
+  document.getElementById('funnelWeb').innerHTML = funnelHtml(c.sessions, Object.fromEntries(Object.entries(fc).map(([k, v]) => [k, v.sessions])));
+  const devs = (w.devices || []).filter(d => d.sessions >= 20).sort((a, b) => b.sessions - a.sessions);
+  document.getElementById('funnelDev').innerHTML = devs.map(d => `<div class="panel"><h3>${DEVICE_ES[d.name] || d.name}</h3>${funnelHtml(d.sessions, w.deviceFunnel?.[d.name] || {})}</div>`).join('');
+}
+
+function demoWeb(range){
+  let seed = 23; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const days = []; for(let d = range.start; d <= range.end; d = addDays(d, 1)){ const s = Math.round(180 + rnd() * 120); days.push({ date:d, sessions:s, purchases:Math.round(s * (0.012 + rnd() * 0.01)), revenue:0, addToCarts:0, engagementRate:0.6 }); }
+  const S = days.reduce((a, d) => a + d.sessions, 0), P = days.reduce((a, d) => a + d.purchases, 0);
+  const k = f => ({ sessions:Math.round(S * f), users:Math.round(S * f * 0.87), newUsers:Math.round(S * f * 0.7), engagementRate:0.58 + rnd() * 0.08, engagementSeconds:S * f * 52, pageViews:S * f * 3.1, purchases:Math.round(P * f), revenue:P * f * 1080, addToCarts:S * f * 0.2, checkouts:S * f * 0.03 });
+  const fun = f => ({ view_item:{ sessions:Math.round(S * f * 0.41) }, add_to_cart:{ sessions:Math.round(S * f * 0.13) }, begin_checkout:{ sessions:Math.round(S * f * 0.032) }, purchase:{ sessions:Math.round(P * f * 0.95) } });
+  const mk = (name, share, cr) => ({ name, sessions:Math.round(S * share), engagementRate:0.45 + rnd() * 0.3, addToCarts:Math.round(S * share * 0.2), purchases:Math.round(S * share * cr), revenue:Math.round(S * share * cr * 1080) });
+  return {
+    kpi:{ cur:k(1), prev:k(0.92) }, funnel:{ cur:fun(1), prev:fun(0.92) }, daily:days,
+    channels:[mk('Paid Social', 0.52, 0.011), mk('Organic Search', 0.14, 0.024), mk('Direct', 0.16, 0.03), mk('Paid Search', 0.06, 0.035), mk('Organic Social', 0.07, 0.008), mk('Email', 0.03, 0.04), mk('Referral', 0.02, 0.015)],
+    sources:[mk('facebook / paid', 0.31, 0.01), mk('ig / paid', 0.21, 0.012), mk('google / organic', 0.14, 0.024), mk('(direct) / (none)', 0.16, 0.03), mk('google / cpc', 0.06, 0.035), mk('klaviyo / email', 0.03, 0.04), mk('instagram.com / referral', 0.07, 0.008)],
+    devices:[{ ...mk('mobile', 0.82, 0.014), engagementSeconds:S * 0.82 * 45 }, { ...mk('desktop', 0.16, 0.026), engagementSeconds:S * 0.16 * 90 }, { ...mk('tablet', 0.02, 0.01), engagementSeconds:S * 0.02 * 50 }],
+    deviceFunnel:{ mobile:{ view_item:Math.round(S * 0.82 * 0.4), add_to_cart:Math.round(S * 0.82 * 0.12), begin_checkout:Math.round(S * 0.82 * 0.025), purchase:Math.round(S * 0.82 * 0.013) }, desktop:{ view_item:Math.round(S * 0.16 * 0.45), add_to_cart:Math.round(S * 0.16 * 0.16), begin_checkout:Math.round(S * 0.16 * 0.06), purchase:Math.round(S * 0.16 * 0.025) } },
+    landing:[mk('/', 0.3, 0.02), mk('/products/kit-quema-y-reduce', 0.18, 0.015), mk('/collections/ofertas', 0.12, 0.02), mk('/products/scudo', 0.08, 0.012), mk('/products/kirei', 0.07, 0.018), mk('/pages/suscripcion', 0.04, 0.03)],
+    products:['Scudo','Kirei','Frī','Kit Quema y Reduce','Té Verde','Laila','Pultsu','Óxido de Magnesio'].map(nm => { const v = Math.round(200 + rnd() * 700), a = Math.round(v * (0.15 + rnd() * 0.25)), b = Math.round(a * (0.08 + rnd() * 0.2)); return { name:nm, views:v, addToCarts:a, purchased:b, revenue:b * 420 }; }),
+    regions:[mk('Ciudad de México', 0.24, 0.015), mk('Nuevo León', 0.12, 0.02), mk('Estado de México', 0.11, 0.012), mk('Jalisco', 0.09, 0.016), mk('Veracruz', 0.05, 0.013), mk('Puebla', 0.05, 0.011), mk('Querétaro', 0.04, 0.019)],
+  };
+}
+
+/* ==========================================================================
    Estado de las fuentes
    ========================================================================== */
 function renderStatus(status, errors){
@@ -1452,6 +1657,7 @@ async function refresh(){
 
   renderStatus(d.status, d.errors);
   // El mensual (Ene → hoy) tarda más porque trae todos los pedidos del año: se dibuja cuando llega, sin frenar lo demás.
+  loadWeb(range);
   if(!DEMO && !MONTHLY_DATA) loadMonthly().then(m => { MONTHLY_DATA = m; STATE.monthly = m; window.DATA.monthly = m; renderMensual(m); });
   if(DEMO) STATE.monthly = d.monthly;
   renderResumen(STATE, range);
@@ -1480,6 +1686,7 @@ function showTab(name){
   // Las gráficas creadas con la pestaña oculta miden 0: se redibujan al mostrarla.
   requestAnimationFrame(() => {
     if(name === 'audiencias' && STATE.audRows) renderAudiencias(STATE);
+    else if(name === 'web' && STATE.web) renderWeb(STATE.web, null, resolveRange(currentRangeKey));
     else Object.values(charts).forEach(c => c?.resize());
   });
 }
