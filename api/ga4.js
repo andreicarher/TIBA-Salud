@@ -1,4 +1,8 @@
 // GET /api/ga4?since=YYYY-MM-DD&until=YYYY-MM-DD[&refresh=1]
+//   → totales del rango para el embudo del Resumen.
+// GET /api/ga4?view=web&since=...&until=...&prevSince=...&prevUntil=...
+//   → todo lo de la pestaña Web: KPIs (actual y anterior), embudo por sesiones,
+//     diario, canales, fuente/medio, dispositivos, páginas de entrada, productos y estados.
 //
 // GA4 Data API por REST (sin SDK). Autenticación con service account firmando
 // un JWT con la librería crypto de Node (cero dependencias).
@@ -80,14 +84,89 @@ async function fetchGA4(since, until) {
   return { sessions: num(t[0]?.value), users: num(t[1]?.value), events: ev };
 }
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const n = (row, i) => num(row.metricValues[i]?.value);
+const dims = (row) => row.dimensionValues.map((d) => d.value);
+const FUNNEL = ["view_item", "add_to_cart", "begin_checkout", "purchase"];
+
+// GA4 entrega los estados en inglés y sin acentos
+const REGION_ES = {
+  "Mexico City": "Ciudad de México", "State of Mexico": "Estado de México", "Nuevo Leon": "Nuevo León", "Queretaro": "Querétaro",
+  "Michoacan": "Michoacán", "San Luis Potosi": "San Luis Potosí", "Yucatan": "Yucatán", "Coahuila": "Coahuila", "Baja California Sur": "Baja California Sur",
+  "Baja California": "Baja California", "Quintana Roo": "Quintana Roo", "Guanajuato": "Guanajuato", "Jalisco": "Jalisco", "Puebla": "Puebla", "Veracruz": "Veracruz",
+  "Hidalgo": "Hidalgo", "Morelos": "Morelos", "Chihuahua": "Chihuahua", "Sonora": "Sonora", "Sinaloa": "Sinaloa", "Tamaulipas": "Tamaulipas", "Oaxaca": "Oaxaca",
+  "Chiapas": "Chiapas", "Tabasco": "Tabasco", "Campeche": "Campeche", "Guerrero": "Guerrero", "Aguascalientes": "Aguascalientes", "Zacatecas": "Zacatecas",
+  "Durango": "Durango", "Nayarit": "Nayarit", "Colima": "Colima", "Tlaxcala": "Tlaxcala", "(not set)": "Sin dato",
+};
+
+async function fetchWeb(since, until, prevSince, prevUntil) {
+  const cur = { startDate: since, endDate: until, name: "cur" };
+  const ranges = prevSince ? [cur, { startDate: prevSince, endDate: prevUntil, name: "prev" }] : [cur];
+  const only = [{ startDate: since, endDate: until }];
+  const BASE_M = ["sessions", "engagementRate", "addToCarts", "ecommercePurchases", "purchaseRevenue"].map((name) => ({ name }));
+  const eventFilter = { filter: { fieldName: "eventName", inListFilter: { values: FUNNEL } } };
+
+  const [summary, funnel, daily, channels, sources, devices, devFunnel, landing, products, regions] = await Promise.all([
+    // 1. KPIs: actual vs anterior (dateRange llega como dimensión cuando hay dos rangos)
+    runReport({ dateRanges: ranges, metrics: ["sessions", "totalUsers", "newUsers", "engagementRate", "userEngagementDuration", "screenPageViews", "ecommercePurchases", "purchaseRevenue", "addToCarts", "checkouts"].map((name) => ({ name })) }),
+    // 2. Embudo por sesiones: sesiones en las que ocurrió cada evento
+    runReport({ dateRanges: ranges, dimensions: [{ name: "eventName" }], metrics: [{ name: "sessions" }, { name: "eventCount" }], dimensionFilter: eventFilter }),
+    runReport({ dateRanges: only, dimensions: [{ name: "date" }], metrics: BASE_M, orderBys: [{ dimension: { dimensionName: "date" } }] }),
+    runReport({ dateRanges: only, dimensions: [{ name: "sessionDefaultChannelGroup" }], metrics: BASE_M }),
+    runReport({ dateRanges: only, dimensions: [{ name: "sessionSourceMedium" }], metrics: BASE_M, orderBys: [{ metric: { metricName: "sessions" }, desc: true }], limit: 100 }),
+    runReport({ dateRanges: only, dimensions: [{ name: "deviceCategory" }], metrics: [...BASE_M, { name: "userEngagementDuration" }] }),
+    runReport({ dateRanges: only, dimensions: [{ name: "deviceCategory" }, { name: "eventName" }], metrics: [{ name: "sessions" }], dimensionFilter: eventFilter }),
+    runReport({ dateRanges: only, dimensions: [{ name: "landingPage" }], metrics: BASE_M, orderBys: [{ metric: { metricName: "sessions" }, desc: true }], limit: 50 }),
+    runReport({ dateRanges: only, dimensions: [{ name: "itemName" }], metrics: ["itemsViewed", "itemsAddedToCart", "itemsPurchased", "itemRevenue"].map((name) => ({ name })), orderBys: [{ metric: { metricName: "itemsViewed" }, desc: true }], limit: 100 }),
+    runReport({ dateRanges: only, dimensions: [{ name: "region" }], metrics: BASE_M, dimensionFilter: { filter: { fieldName: "countryId", stringFilter: { value: "MX" } } }, orderBys: [{ metric: { metricName: "sessions" }, desc: true }], limit: 40 }),
+  ]);
+
+  // Con dos rangos, GA4 agrega la dimensión "dateRange" al final de cada fila
+  const byRange = (rep, mapRow) => {
+    const out = { cur: null, prev: null };
+    for (const row of rep.rows || []) {
+      const d = dims(row); const key = prevSince ? d[d.length - 1] : "cur";
+      out[key] = mapRow(row, d, out[key]);
+    }
+    return out;
+  };
+  const kpi = byRange(summary, (row) => ({
+    sessions: n(row, 0), users: n(row, 1), newUsers: n(row, 2), engagementRate: n(row, 3), engagementSeconds: n(row, 4),
+    pageViews: n(row, 5), purchases: n(row, 6), revenue: n(row, 7), addToCarts: n(row, 8), checkouts: n(row, 9),
+  }));
+  const fun = byRange(funnel, (row, d, acc) => { const a = acc || {}; a[d[0]] = { sessions: n(row, 0), events: n(row, 1) }; return a; });
+
+  const base = (row, d) => ({ name: d[0], sessions: n(row, 0), engagementRate: n(row, 1), addToCarts: n(row, 2), purchases: n(row, 3), revenue: n(row, 4) });
+  const deviceFunnel = {};
+  for (const row of devFunnel.rows || []) { const [dev, ev] = dims(row); (deviceFunnel[dev] ||= {})[ev] = n(row, 0); }
+
+  return {
+    kpi, funnel: fun,
+    daily: (daily.rows || []).map((row) => { const d = dims(row)[0]; return { ...base(row, [d]), date: `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` }; }),
+    channels: (channels.rows || []).map((row) => base(row, dims(row))),
+    sources: (sources.rows || []).map((row) => base(row, dims(row))),
+    devices: (devices.rows || []).map((row) => ({ ...base(row, dims(row)), engagementSeconds: n(row, 5) })),
+    deviceFunnel,
+    landing: (landing.rows || []).map((row) => base(row, dims(row))),
+    products: (products.rows || []).map((row) => ({ name: dims(row)[0], views: n(row, 0), addToCarts: n(row, 1), purchased: n(row, 2), revenue: n(row, 3) })),
+    regions: (regions.rows || []).map((row) => { const b = base(row, dims(row)); return { ...b, name: REGION_ES[b.name] || b.name }; }),
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
     const { since, until } = readRange(req.query);
-    const key = `${since}_${until}`;
+    const view = req.query.view === "web" ? "web" : "summary";
+    const { prevSince, prevUntil } = req.query;
+    if (view === "web" && prevSince && (!DATE_RE.test(prevSince) || !DATE_RE.test(prevUntil || ""))) {
+      return res.status(400).json({ error: "prevSince/prevUntil deben ser YYYY-MM-DD" });
+    }
+    const key = `${view}_${since}_${until}_${prevSince || ""}_${prevUntil || ""}`;
     let data = req.query.refresh === "1" ? null : cache.get(key);
     if (!data) {
-      data = { source: "ga4", since, until, ...(await fetchGA4(since, until)), fetchedAt: new Date().toISOString() };
+      const payload = view === "web" ? await fetchWeb(since, until, prevSince, prevUntil) : await fetchGA4(since, until);
+      data = { source: "ga4", view, since, until, ...payload, fetchedAt: new Date().toISOString() };
       cache.set(key, data);
     }
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
