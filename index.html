@@ -173,6 +173,29 @@
   dialog.viewer .vbar{ display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:.75rem 1rem; font-size:.85rem; color:var(--marino); font-weight:600; }
   dialog.viewer .vbar small{ display:block; font-weight:400; color:var(--texto-suave); }
   dialog.viewer button{ font:inherit; border:1px solid var(--borde); background:var(--blanco); border-radius:6px; padding:.35rem .8rem; cursor:pointer; color:var(--marino); }
+  .ads-tools{ justify-content:space-between; }
+  .sortby{ display:flex; align-items:center; gap:.5rem; font-size:.82rem; color:var(--texto-suave); margin-left:auto; }
+  .ads-count{ font-size:.95rem; font-weight:600; color:var(--marino); margin:.25rem 0 .9rem; }
+  .adgrid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(250px, 1fr)); gap:1rem; }
+  .adcard{ background:var(--blanco); border:1px solid var(--borde); border-radius:12px; overflow:hidden; display:flex; flex-direction:column; min-width:0; }
+  /* Imagen cuadrada 1:1, completa (sin recortar) sobre fondo oscuro, como el formato de referencia */
+  .adimg{ position:relative; display:block; width:100%; aspect-ratio:1 / 1; padding:0; border:0; background:var(--carbon); cursor:zoom-in; overflow:hidden; }
+  .adimg img{ width:100%; height:100%; object-fit:contain; display:block; }
+  .adimg .ph{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.7); font-size:.85rem; }
+  .adimg:focus-visible{ outline:3px solid var(--naranja); outline-offset:-3px; }
+  .rank{ position:absolute; top:.75rem; left:.75rem; width:2.1rem; height:2.1rem; border-radius:50%; background:var(--carbon); color:var(--blanco); font-weight:700; font-size:.95rem; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px rgba(255,255,255,.85); z-index:1; }
+  .vtag{ position:absolute; top:.85rem; right:.75rem; background:rgba(38,40,46,.8); color:var(--blanco); font-size:.66rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; padding:.2rem .5rem; border-radius:4px; z-index:1; }
+  .adbody{ padding:1rem 1.1rem 1.1rem; display:flex; flex-direction:column; gap:.2rem; flex:1; }
+  .adname{ font-size:1rem; font-weight:700; color:var(--marino); margin:0; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }
+  .admeta{ font-size:.85rem; color:var(--texto); }
+  .adcamp{ font-size:.82rem; color:var(--texto-suave); padding-bottom:.6rem; border-bottom:1px solid var(--borde); margin-bottom:.4rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .admetrics{ display:grid; grid-template-columns:1fr 1fr; gap:.7rem .9rem; margin:.3rem 0 0; align-items:end; }
+  .admetrics div{ min-width:0; }
+  .admetrics dt{ font-size:.64rem; letter-spacing:.06em; text-transform:uppercase; color:var(--texto-suave); line-height:1.25; }
+  .admetrics dd{ margin:.1rem 0 0; font-size:1.05rem; font-weight:700; color:var(--marino); font-variant-numeric:tabular-nums; }
+  .admetrics .hero dd{ color:var(--naranja); }
+  .ads-more{ display:flex; justify-content:center; margin-top:1.1rem; }
+  .ads-more button{ font:inherit; font-size:.85rem; font-weight:600; border:1px solid var(--borde); background:var(--blanco); color:var(--marino); border-radius:999px; padding:.55rem 1.3rem; cursor:pointer; }
   .concept{ max-width:280px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--marino); font-weight:600; text-align:left; }
   .concept-sub{ font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--texto-suave); text-align:left; margin-top:.15rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:280px; }
   .tgrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); background:var(--blanco); border:1px solid var(--borde); }
@@ -192,6 +215,7 @@
   @media (max-width:640px){
     .kpis, .kpis.k7, .kgrid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
     .ar, .tgrid{ grid-template-columns:minmax(0,1fr); }
+    .sortby{ margin-left:0; }
     .kcell .kvalue{ font-size:1.35rem; }
     .range-label{ margin-left:0; width:100%; text-align:left; }
     .chart-box{ height:270px; }
@@ -307,12 +331,32 @@
 
     <div class="sec">
       <div class="eyebrow">Ranking</div>
-      <div class="sec-head"><h2 class="sec-title">Top creativos por ROAS</h2><span class="sec-meta">Haz clic en una columna para ordenar por otra métrica</span></div>
+      <div class="sec-head"><h2 class="sec-title" id="adsTitle">Top creativos por ROAS</h2><span class="sec-meta">Haz clic en una imagen para verla en grande</span></div>
       <div class="chips" id="adsChips" role="group" aria-label="Tipo de campaña"></div>
       <div class="panel">
-        <div class="table-tools"><input type="search" id="fAd" placeholder="Buscar anuncio o campaña" aria-label="Buscar anuncio o campaña"></div>
-        <div class="table-wrap"><table class="tbl-ads" id="tblAds"></table></div>
-        <div class="pager" id="pgAds"></div>
+        <div class="table-tools ads-tools">
+          <input type="search" id="fAd" placeholder="Buscar anuncio o campaña" aria-label="Buscar anuncio o campaña">
+          <label class="sortby">Ordenar por
+            <select id="adsSort" aria-label="Ordenar anuncios por">
+              <option value="roas">ROAS</option><option value="spend">Inversión</option><option value="value">Valor de compra</option>
+              <option value="purchases">Compras</option><option value="landing_page_views">Visitas a la página</option>
+              <option value="add_to_cart">Añadidos al carrito</option><option value="add_to_cart_value">Valor carrito</option>
+              <option value="checkouts">Inicios de pago</option><option value="unique_ctr">CTR único</option><option value="reach">Alcance</option>
+            </select>
+          </label>
+          <div class="seg" role="group" aria-label="Vista" id="adsView">
+            <button data-v="cards" aria-pressed="true">Tarjetas</button><button data-v="table" aria-pressed="false">Tabla</button>
+          </div>
+        </div>
+        <div id="adsCardsWrap">
+          <p class="ads-count" id="adsCount"></p>
+          <div class="adgrid" id="adsGrid"></div>
+          <div class="ads-more"><button type="button" id="adsMore" hidden>Ver 20 más</button></div>
+        </div>
+        <div id="adsTableWrap" hidden>
+          <div class="table-wrap"><table class="tbl-ads" id="tblAds"></table></div>
+          <div class="pager" id="pgAds"></div>
+        </div>
         <p class="note">Tipo detectado por el nombre del anuncio y, si no lo indica, por el del conjunto o la campaña: contiene "RTG", "Retargeting" o "Remarketing" → Retargeting; contiene "PRO", "Prospecting" o "Prospección" → Prospecting; si no, Sin clasificar. Las etiquetas manuales de CAMPAIGN_OVERRIDES tienen prioridad. Compras, valor y ROAS son los que reporta Meta.</p>
       </div>
     </div>
@@ -1171,19 +1215,66 @@ function adType(r){ return labelFromNames([r.ad, r.adset, r.campaign], r.campaig
 const AD_METRICS = ['spend','impressions','landing_page_views','link_clicks','purchases','value'];
 function adDerive(t){ return { ...t, cpv:div(t.spend, t.landing_page_views), roas:div(t.value, t.spend), cpa:div(t.spend, t.purchases) }; }
 
-let adsFilter = 'Todos';
+let adsFilter = 'Todos', adsView = 'cards', adsSort = 'roas', adsLimit = 20, ADS_ROWS = [];
+const AD_SORT_LABEL = { roas:'ROAS', spend:'inversión', value:'valor de compra', purchases:'compras', landing_page_views:'visitas a la página', add_to_cart:'añadidos al carrito', add_to_cart_value:'valor de carrito', checkouts:'inicios de pago', unique_ctr:'CTR único', reach:'alcance' };
+
+function adsVisible(){
+  const q = normTxt(document.getElementById('fAd').value.trim());
+  return ADS_ROWS.filter(r => (adsFilter === 'Todos' || r.type === adsFilter) && (!q || normTxt(`${r.ad} ${r.adset} ${r.campaign}`).includes(q)));
+}
+function adCard(r, i){
+  const img = r.thumbnail
+    ? `<img src="${escapeHtml(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'ph',textContent:'Sin vista previa'}))">`
+    : '<span class="ph">Sin vista previa</span>';
+  const M = (label, v, cls = '') => `<div class="${cls}"><dt>${label}</dt><dd>${v}</dd></div>`;
+  return `<article class="adcard">
+    <button type="button" class="adimg thumb-btn" data-ad="${escapeHtml(r.ad_id)}" aria-label="Ampliar ${escapeHtml(r.ad)}">
+      <span class="rank">${i + 1}</span>${r.type_creative === 'VIDEO' ? '<span class="vtag">Video</span>' : ''}${img}
+    </button>
+    <div class="adbody">
+      <h3 class="adname" title="${escapeHtml(r.ad)}">${escapeHtml(r.ad)}</h3>
+      <div class="admeta">${escapeHtml(objectiveLabel(r.objective))} · ${escapeHtml(r.type)}</div>
+      <div class="adcamp" title="${escapeHtml(r.campaign)}">${escapeHtml(r.campaign)}</div>
+      <dl class="admetrics">
+        ${M('Alcance', int(r.reach))}${M('CTR único', pct(r.unique_ctr))}
+        ${M('Visitas a la página', int(r.landing_page_views))}${M('Añadidos al carrito', int(r.add_to_cart))}
+        ${M('Valor carrito', money(r.add_to_cart_value))}${M('Inicios de pago', int(r.checkouts))}
+        ${M('Inversión', money(r.spend))}${M('Compras', int(r.purchases))}
+        ${M('Valor de compra', money(r.value))}${M('ROAS', xRoas(r.roas), 'hero')}
+      </dl>
+    </div>
+  </article>`;
+}
+function renderAdsGrid(){
+  const list = adsVisible().sort((a, b) => (b[adsSort] ?? -Infinity) - (a[adsSort] ?? -Infinity));
+  const shown = list.slice(0, adsLimit);
+  document.getElementById('adsTitle').textContent = `Top creativos por ${AD_SORT_LABEL[adsSort]}`;
+  document.getElementById('adsCount').textContent = list.length ? `Mostrando ${int(shown.length)} de ${int(list.length)} anuncios` : '';
+  document.getElementById('adsGrid').innerHTML = shown.length ? shown.map(adCard).join('') : '<p class="empty">No hay anuncios con inversión para este tipo y periodo.</p>';
+  const more = document.getElementById('adsMore');
+  more.hidden = shown.length >= list.length;
+  more.textContent = `Ver ${Math.min(20, list.length - shown.length)} más`;
+}
+document.getElementById('adsMore').addEventListener('click', () => { adsLimit += 20; renderAdsGrid(); });
+document.getElementById('adsSort').addEventListener('change', e => { adsSort = e.target.value; adsLimit = 20; renderAdsGrid(); });
+document.querySelectorAll('#adsView button').forEach(b => b.addEventListener('click', () => {
+  adsView = b.dataset.v;
+  document.querySelectorAll('#adsView button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  document.getElementById('adsCardsWrap').hidden = adsView !== 'cards';
+  document.getElementById('adsTableWrap').hidden = adsView !== 'table';
+}));
 const thumbCell = (v, r) => v
   ? `<button type="button" class="thumb-btn" data-ad="${escapeHtml(r.ad_id)}" aria-label="Ampliar ${escapeHtml(r.ad)}"><img class="thumb" src="${escapeHtml(v)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest('button').outerHTML='<div class=&quot;thumb ph&quot;>Sin vista previa</div>'"></button>`
   : '<div class="thumb ph">Sin vista previa</div>';
 // Visor: abre la imagen completa (o la miniatura grande en videos) al hacer clic en la miniatura
-document.getElementById('tblAds').addEventListener('click', e => {
+document.querySelector('[data-panel="creativos"]').addEventListener('click', e => {
   const b = e.target.closest('.thumb-btn'); if(!b) return;
-  const r = (STATE.adsRows || []).find(x => String(x.ad_id) === b.dataset.ad); if(!r) return;
+  const r = ADS_ROWS.find(x => String(x.ad_id) === b.dataset.ad) || (STATE.adsRows || []).find(x => String(x.ad_id) === b.dataset.ad); if(!r) return;
   const img = document.getElementById('viewerImg');
   img.src = r.image || r.thumbnail; img.referrerPolicy = 'no-referrer';
   img.onerror = () => { if(r.thumbnail && img.src !== r.thumbnail) img.src = r.thumbnail; };
   document.getElementById('viewerTitle').textContent = r.ad;
-  document.getElementById('viewerSub').textContent = `${adType(r)} · ${r.campaign}${r.type === 'VIDEO' ? ' · video (se muestra su portada)' : ''}`;
+  document.getElementById('viewerSub').textContent = `${adType(r)} · ${r.campaign}${(r.type_creative || r.type) === 'VIDEO' ? ' · video (se muestra su portada)' : ''}`;
   document.getElementById('viewer').showModal();
 });
 document.getElementById('viewerClose').addEventListener('click', () => document.getElementById('viewer').close());
@@ -1210,6 +1301,7 @@ const tblAds = createTable({ tableId:'tblAds', pagerId:'pgAds', noun:'anuncios',
 function applyAdsFilter(){
   const q = normTxt(document.getElementById('fAd').value.trim());
   tblAds.setFilter(r => (adsFilter === 'Todos' || r.type === adsFilter) && (!q || normTxt(`${r.ad} ${r.adset} ${r.campaign}`).includes(q)));
+  adsLimit = 20; renderAdsGrid();
 }
 document.getElementById('fAd').addEventListener('input', applyAdsFilter);
 
@@ -1217,13 +1309,14 @@ function renderCreativos(S, range){
   document.getElementById('adsRange').textContent = `${range.start} → ${range.end}`;
   if(!S.adsRows){
     notice('adsNotice', `Meta no devolvió el rendimiento por anuncio: ${escapeHtml(S.errors.ads || '')}`);
-    document.getElementById('adsTipos').innerHTML = ''; document.getElementById('adsChips').innerHTML = ''; tblAds.setRows([]); return;
+    document.getElementById('adsTipos').innerHTML = ''; document.getElementById('adsChips').innerHTML = ''; tblAds.setRows([]); ADS_ROWS = []; renderAdsGrid(); return;
   }
   const noThumbs = S.adsRows.length && !S.adsRows.some(r => r.thumbnail);
   notice('adsNotice', noThumbs ? `Meta no devolvió las miniaturas de los anuncios${S.adsThumbsError ? `: ${escapeHtml(S.adsThumbsError)}` : '.'} Revisa que el token tenga acceso de lectura a los creativos de la cuenta.` : '');
   const rows = S.adsRows.filter(r => r.spend > 0 || r.impressions > 0).map(r => adDerive({
-    ...r, value:+r.purchase_value || 0, type:adType(r),
+    ...r, value:+r.purchase_value || 0, add_to_cart_value:+r.add_to_cart_value || 0, type_creative:r.type, type:adType(r),
   }));
+  ADS_ROWS = rows;
 
   // Resumen por tipo
   const totalSpend = rows.reduce((a, r) => a + r.spend, 0);
@@ -1754,7 +1847,7 @@ function demoData(since, until, range){
   const adsRows = adNames.map(([ad, campaign, cid], i) => {
     const spend = Math.round(300 + rnd() * 9000), reach = Math.round(spend * (6 + rnd() * 8)), freq = 1.2 + rnd() * 2, imp = Math.round(reach * freq);
     const lpv = Math.round(imp * (0.004 + rnd() * 0.01)), pur = Math.round(lpv * (0.03 + rnd() * 0.07));
-    return { ad_id:String(i), ad, adset_id:`${cid}-${i % 2}`, adset:`${campaign} | Conjunto ${i % 2 ? 'Intereses' : 'Lookalike 2%'}`, campaign, campaign_id:cid, objective:'OUTCOME_SALES', link_clicks:Math.round(spend * (0.6 + rnd())), add_to_cart:0, checkouts:0, spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:i % 4 === 3 ? null : `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><rect width='240' height='240' fill='${['#21362C','#6F1D46','#00744B','#B21E29'][i % 4]}'/><text x='120' y='130' font-family='sans-serif' font-size='22' fill='white' text-anchor='middle'>Ejemplo ${i + 1}</text></svg>`)}`, image:null, type:i % 3 ? 'PHOTO' : 'VIDEO' };
+    return { ad_id:String(i), ad, adset_id:`${cid}-${i % 2}`, adset:`${campaign} | Conjunto ${i % 2 ? 'Intereses' : 'Lookalike 2%'}`, campaign, campaign_id:cid, objective:'OUTCOME_SALES', link_clicks:Math.round(spend * (0.6 + rnd())), add_to_cart:Math.round(lpv * (0.08 + rnd() * 0.08)), add_to_cart_value:Math.round(lpv * (0.08 + rnd() * 0.08)) * (420 + rnd() * 300), checkouts:Math.round(lpv * (0.02 + rnd() * 0.03)), spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:i % 4 === 3 ? null : `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><rect width='240' height='240' fill='${['#21362C','#6F1D46','#00744B','#B21E29'][i % 4]}'/><text x='120' y='130' font-family='sans-serif' font-size='22' fill='white' text-anchor='middle'>Ejemplo ${i + 1}</text></svg>`)}`, image:null, type:i % 3 ? 'PHOTO' : 'VIDEO' };
   });
   return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
