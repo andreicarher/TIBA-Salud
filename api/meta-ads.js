@@ -124,8 +124,8 @@ async function fetchMonthly(since, until, token) {
 }
 
 const CREATIVE_FIELDS = "creative{thumbnail_url,image_url,object_type}";
-// Mismo campo pidiendo una miniatura de 240 px (la de 64 px por defecto se ve borrosa)
-const CREATIVE_FIELDS_HD = "creative.thumbnail_width(240).thumbnail_height(240){thumbnail_url,image_url,object_type}";
+// Mismo campo pidiendo una portada de 600 px (la de 64 px por defecto se ve borrosa en tarjetas)
+const CREATIVE_FIELDS_HD = "creative.thumbnail_width(600).thumbnail_height(600){thumbnail_url,image_url,object_type}";
 function readCreative(ad) {
   const c = ad?.creative || {};
   // En imágenes se usa la original (nítida); en videos y carruseles, la portada.
@@ -184,6 +184,7 @@ async function fetchAds(since, until, token) {
           unique_ctr: num(r.unique_inline_link_click_ctr) / 100,   // Meta lo entrega en porcentaje
           landing_page_views: pickAction(r.actions, ACTION_PRIORITY.landing_page_views),
           add_to_cart: pickAction(r.actions, ACTION_PRIORITY.add_to_cart),
+          add_to_cart_value: pickAction(r.action_values, ACTION_PRIORITY.add_to_cart),
           checkouts: pickAction(r.actions, ACTION_PRIORITY.checkouts),
           purchases: pickAction(r.actions, ACTION_PRIORITY.purchases),
           purchase_value: pickAction(r.action_values, ACTION_PRIORITY.purchases),
