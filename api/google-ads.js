@@ -1,5 +1,6 @@
 // GET /api/google-ads?since=YYYY-MM-DD&until=YYYY-MM-DD[&refresh=1]
 // GET /api/google-ads?view=monthly&since=...&until=...   → inversión por mes
+// GET /api/google-ads?view=keywords&since=...&until=...  → palabras clave con estado y métricas del periodo
 //
 // Google Ads API por REST (sin SDK). Filas diarias por campaña, sin agregar.
 //
@@ -126,6 +127,52 @@ async function fetchGoogleAds(since, until) {
   };
 }
 
+// Palabras clave con actividad en el rango (totales del periodo, sin segmentar por día).
+// Performance Max y Shopping no usan palabras clave, así que solo aparecen las de Search.
+const KW_STATUS = { ENABLED: "Activo", PAUSED: "Pausado", REMOVED: "Quitado" };
+const MATCH = { EXACT: "Exacta", PHRASE: "Frase", BROAD: "Amplia" };
+async function fetchKeywords(since, until) {
+  const rows = await gaql(`
+    SELECT
+      ad_group_criterion.criterion_id,
+      ad_group_criterion.keyword.text,
+      ad_group_criterion.keyword.match_type,
+      ad_group_criterion.status,
+      ad_group.id,
+      ad_group.name,
+      ad_group.status,
+      campaign.id,
+      campaign.name,
+      campaign.status,
+      metrics.cost_micros,
+      metrics.conversions,
+      metrics.conversions_value,
+      metrics.impressions,
+      metrics.clicks
+    FROM keyword_view
+    WHERE segments.date BETWEEN '${since}' AND '${until}'
+  `);
+  return rows.map((r) => {
+    const own = r.adGroupCriterion?.status;
+    const parentPaused = r.campaign?.status !== "ENABLED" || r.adGroup?.status !== "ENABLED";
+    return {
+      id: `${r.adGroup?.id}~${r.adGroupCriterion?.criterionId}`,
+      keyword: r.adGroupCriterion?.keyword?.text || "(sin texto)",
+      match: MATCH[r.adGroupCriterion?.keyword?.matchType] || r.adGroupCriterion?.keyword?.matchType || "",
+      status: KW_STATUS[own] || own || "",
+      // La palabra puede estar activa pero no publicarse si su campaña o grupo está en pausa
+      parent_paused: own === "ENABLED" && parentPaused,
+      ad_group: r.adGroup?.name,
+      campaign: r.campaign?.name,
+      spend: num(r.metrics?.costMicros) / 1_000_000,
+      conversions: num(r.metrics?.conversions),
+      conversions_value: num(r.metrics?.conversionsValue),
+      impressions: num(r.metrics?.impressions),
+      clicks: num(r.metrics?.clicks),
+    };
+  });
+}
+
 // Desglose mensual a nivel cuenta (para la gráfica Ene → hoy del Resumen).
 async function fetchMonthly(since, until) {
   const rows = await gaql(`
@@ -145,9 +192,13 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
   try {
     const { since, until } = readRange(req.query);
-    const view = req.query.view === "monthly" ? "monthly" : "campaigns";
+    const view = ["monthly", "keywords"].includes(req.query.view) ? req.query.view : "campaigns";
     const key = `${view}_${since}_${until}`;
     let data = req.query.refresh === "1" ? null : cache.get(key);
+    if (!data && view === "keywords") {
+      data = { source: "google_ads", view, since, until, rows: await fetchKeywords(since, until), fetchedAt: new Date().toISOString() };
+      cache.set(key, data);
+    }
     if (!data && view === "monthly") {
       data = { source: "google_ads", view, since, until, rows: await fetchMonthly(since, until), fetchedAt: new Date().toISOString() };
       cache.set(key, data);
