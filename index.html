@@ -393,8 +393,11 @@
       <p class="sub" id="kwSub">Palabras clave con actividad en el periodo seleccionado.</p>
       <div class="notice" id="kwNotice" hidden style="margin-bottom:.75rem"></div>
       <div class="table-tools">
-        <input type="search" id="fKw" placeholder="Buscar palabra clave, grupo o campaña" aria-label="Buscar palabra clave">
+        <input type="search" id="fKw" placeholder="Buscar palabra clave" aria-label="Buscar palabra clave">
+        <select id="fKwCamp" aria-label="Campaña"><option value="">Todas las campañas</option></select>
+        <select id="fKwGroup" aria-label="Grupo de anuncios"><option value="">Todos los grupos</option></select>
         <select id="fKwStatus" aria-label="Estado"><option value="">Todos los estados</option><option>Activo</option><option>Pausado</option><option>Quitado</option></select>
+        <label class="sortby" style="margin-left:0"><input type="checkbox" id="kwZero"> Incluir palabras sin impresiones</label>
         <label class="sortby">Ordenar de mayor a menor por
           <select id="kwSort" aria-label="Ordenar palabras clave por">
             <option value="spend">Costo</option><option value="conversions">Conversiones</option><option value="cpa">Costo por conversión</option>
@@ -405,7 +408,7 @@
       </div>
       <div class="table-wrap"><table id="tblKw"></table></div>
       <div class="pager" id="pgKw"></div>
-      <p class="note">Estado de la palabra clave en Google Ads. "Activo (campaña o grupo en pausa)" indica que la palabra está activa pero no se publica porque su campaña o grupo de anuncios está pausado. % de conversión = conversiones ÷ clics. Performance Max y Shopping no usan palabras clave.</p>
+      <p class="note">Por defecto solo se muestran palabras con impresiones en el periodo. Marca "Incluir palabras sin impresiones" para ver todas las que existen, como en la lista de Google Ads. Estado de la palabra clave en Google Ads. "Activo (campaña o grupo en pausa)" indica que la palabra está activa pero no se publica porque su campaña o grupo de anuncios está pausado. % de conversión = conversiones ÷ clics. Performance Max y Shopping no usan palabras clave.</p>
     </div>
   </section>
 
@@ -1463,22 +1466,49 @@ const tblKw = createTable({ tableId:'tblKw', pagerId:'pgKw', noun:'palabras clav
   totalRow:list => kwDerive({ ...list.reduce((a, r) => { ['spend','conversions','conversions_value','impressions','clicks'].forEach(k => a[k] += r[k] || 0); return a; }, { spend:0, conversions:0, conversions_value:0, impressions:0, clicks:0 }), keyword:undefined, status:undefined, isTotal:true }),
   emptyText:'No hay palabras clave con actividad en este periodo.' });
 function kwDerive(r){ return { ...r, cpa:div(r.spend, r.conversions), cvr:div(r.conversions, r.clicks), ctr:div(r.clicks, r.impressions), cpc:div(r.spend, r.clicks) }; }
+let KW_ALL = [];
+// Filtros en cascada: campaña → grupo → estado → búsqueda. Por defecto, solo palabras con impresiones.
+function kwFiltered(){
+  const q = normTxt(document.getElementById('fKw').value.trim());
+  const camp = document.getElementById('fKwCamp').value, grp = document.getElementById('fKwGroup').value, st = document.getElementById('fKwStatus').value;
+  const zero = document.getElementById('kwZero').checked;
+  return r => (zero || r.impressions > 0) && (!camp || r.campaign === camp) && (!grp || r.ad_group === grp) && (!st || r.status === st) && (!q || normTxt(r.keyword).includes(q));
+}
+function fillKwGroups(){
+  const camp = document.getElementById('fKwCamp').value, el = document.getElementById('fKwGroup'), keep = el.value;
+  const groups = [...new Set(KW_ALL.filter(r => !camp || r.campaign === camp).map(r => r.ad_group || ''))].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  el.innerHTML = '<option value="">Todos los grupos</option>' + groups.map(g => `<option${g === keep ? ' selected' : ''}>${escapeHtml(g)}</option>`).join('');
+}
 function applyKwFilter(){
-  const q = normTxt(document.getElementById('fKw').value.trim()), st = document.getElementById('fKwStatus').value;
-  tblKw.setFilter(r => (!st || r.status === st) && (!q || normTxt(`${r.keyword} ${r.ad_group} ${r.campaign}`).includes(q)));
+  const f = kwFiltered();
+  tblKw.setFilter(f);
+  // Resumen de lo que está en pantalla con los filtros actuales
+  const zero = document.getElementById('kwZero').checked, shown = KW_ALL.filter(f);
+  const by = st => shown.filter(r => r.status === st).length;
+  const noImp = KW_ALL.filter(r => !(r.impressions > 0)).length;
+  document.getElementById('kwSub').textContent = `${int(shown.length)} palabras clave ${zero ? 'en total' : 'con impresiones en el periodo'} · ${int(by('Activo'))} activas · ${int(by('Pausado'))} pausadas · ${int(by('Quitado'))} quitadas${zero ? '' : ` · ${int(noImp)} sin impresiones ocultas`}.`;
 }
 document.getElementById('fKw').addEventListener('input', applyKwFilter);
 document.getElementById('fKwStatus').addEventListener('change', applyKwFilter);
+document.getElementById('fKwCamp').addEventListener('change', () => { fillKwGroups(); applyKwFilter(); });
+document.getElementById('fKwGroup').addEventListener('change', applyKwFilter);
+document.getElementById('kwZero').addEventListener('change', applyKwFilter);
 document.getElementById('kwSort').addEventListener('change', e => tblKw.setSort(e.target.value, 'desc'));
 function renderKeywords(S){
   if(!S.kwRows){
     notice('kwNotice', `Google Ads no devolvió las palabras clave: ${escapeHtml(S.errors.keywords || '')}`); tblKw.setRows([]); return;
   }
   notice('kwNotice', '');
-  const rows = S.kwRows.map(kwDerive);
-  const by = st => rows.filter(r => r.status === st).length;
-  document.getElementById('kwSub').textContent = `${int(rows.length)} palabras clave con actividad en el periodo · ${int(by('Activo'))} activas · ${int(by('Pausado'))} pausadas · ${int(by('Quitado'))} quitadas.`;
-  tblKw.setRows(rows);
+  KW_ALL = S.kwRows.map(kwDerive);
+  // Campañas en el selector: primero las que tuvieron impresiones
+  const camps = [...new Set(KW_ALL.map(r => r.campaign || ''))].filter(Boolean);
+  const active = new Set(KW_ALL.filter(r => r.impressions > 0).map(r => r.campaign));
+  camps.sort((a, b) => (active.has(b) - active.has(a)) || a.localeCompare(b));
+  const cEl = document.getElementById('fKwCamp'), keep = cEl.value;
+  cEl.innerHTML = '<option value="">Todas las campañas</option>' + camps.map(c => `<option${c === keep ? ' selected' : ''}>${escapeHtml(c)}${active.has(c) ? '' : ' (sin impresiones)'}</option>`).join('');
+  [...cEl.options].forEach(o => { if(o.value.endsWith(' (sin impresiones)')) o.value = o.value.replace(' (sin impresiones)', ''); });
+  fillKwGroups();
+  tblKw.setRows(KW_ALL);
   applyKwFilter();
 }
 
@@ -1923,6 +1953,7 @@ function demoData(since, until, range){
   });
   const kwList = [['tiba salud','Exacta','Activo',false],['tiba','Amplia','Activo',false],['suplementos tiba','Frase','Activo',false],['tiba suplementos naturales','Frase','Pausado',false],['kirei colágeno','Exacta','Activo',true],['scudo defensas','Frase','Quitado',false],['tibasalud.com','Exacta','Activo',false],['tiba kit quema y reduce','Amplia','Activo',false]];
   const kwRows = kwList.map(([keyword, match, status, parent_paused], i) => { const imp = Math.round(40 + rnd() * 900), clicks = Math.round(imp * (0.08 + rnd() * 0.3)), conv = Math.round(clicks * (0.01 + rnd() * 0.06) * 10) / 10;
+    if(i === 7) return { id:String(i), keyword, match, status, parent_paused, ad_group:'Marca', campaign:'[S] Producto específico', spend:0, conversions:0, conversions_value:0, impressions:0, clicks:0 };
     return { id:String(i), keyword, match, status, parent_paused, ad_group:i % 2 ? 'Marca' : 'Marca + producto', campaign:'.GADS - MHA - Search - Brand', spend:clicks * (8 + rnd() * 10), conversions:conv, conversions_value:conv * (900 + rnd() * 600), impressions:imp, clicks }; });
   return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, keywords:{ rows:kwRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
