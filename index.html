@@ -157,6 +157,10 @@
   tr.lvl1 td:first-child, tr.lvl2 td:first-child{ font-weight:500; }
   .lvl-tag{ display:inline-block; font-size:.62rem; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--texto-suave); margin-right:.35rem; }
   .mini-thumb{ width:28px; height:28px; border-radius:4px; object-fit:cover; vertical-align:middle; margin-right:.45rem; border:1px solid var(--borde); }
+  .chip.st-on{ background:#E7F4EC; border-color:#BFE3CC; color:var(--sube); }
+  .chip.st-pause{ background:#FDF3E2; border-color:#F2D9A8; color:var(--aviso); }
+  .chip.st-off{ background:#F3F4F6; border-color:var(--borde); color:var(--texto-suave); }
+  .kw-sub{ font-size:.72rem; color:var(--texto-suave); font-weight:400; margin-top:.1rem; }
   .chip.pro{ background:var(--celeste); border-color:var(--celeste); }
   .chips{ display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; }
   .chips button{ font:inherit; font-size:.78rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase; padding:.5rem 1rem; border-radius:999px; border:1px solid var(--borde); background:var(--blanco); color:var(--texto); cursor:pointer; }
@@ -383,6 +387,25 @@
       <div class="table-wrap"><table id="tblGCampanas"></table></div>
       <div class="pager" id="pgGCampanas"></div>
       <p class="note">Conversiones y valor de conversión son los que reporta Google Ads con su atribución.</p>
+    </div>
+    <div class="card">
+      <h2>Palabras clave</h2>
+      <p class="sub" id="kwSub">Palabras clave con actividad en el periodo seleccionado.</p>
+      <div class="notice" id="kwNotice" hidden style="margin-bottom:.75rem"></div>
+      <div class="table-tools">
+        <input type="search" id="fKw" placeholder="Buscar palabra clave, grupo o campaña" aria-label="Buscar palabra clave">
+        <select id="fKwStatus" aria-label="Estado"><option value="">Todos los estados</option><option>Activo</option><option>Pausado</option><option>Quitado</option></select>
+        <label class="sortby">Ordenar de mayor a menor por
+          <select id="kwSort" aria-label="Ordenar palabras clave por">
+            <option value="spend">Costo</option><option value="conversions">Conversiones</option><option value="cpa">Costo por conversión</option>
+            <option value="conversions_value">Valor de conversión</option><option value="cvr">% de conversión</option><option value="impressions">Impresiones</option>
+            <option value="clicks">Clics</option><option value="ctr">CTR</option><option value="cpc">CPC prom.</option>
+          </select>
+        </label>
+      </div>
+      <div class="table-wrap"><table id="tblKw"></table></div>
+      <div class="pager" id="pgKw"></div>
+      <p class="note">Estado de la palabra clave en Google Ads. "Activo (campaña o grupo en pausa)" indica que la palabra está activa pero no se publica porque su campaña o grupo de anuncios está pausado. % de conversión = conversiones ÷ clics. Performance Max y Shopping no usan palabras clave.</p>
     </div>
   </section>
 
@@ -621,7 +644,7 @@ function deltaPct(c, p){ if(c == null || p == null || !p) return null; return (c
    columns: [{ key, label, f?, align?, sortable? }]
    ========================================================================== */
 // tree (opcional): { key:r => id único, children:r => filas hijas, label:r => texto del botón } para filas desplegables.
-function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pageSize = PAGE_SIZE, totalRow, emptyText = 'Sin datos para este periodo.', noun = 'filas', tree = null }){
+function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pageSize = PAGE_SIZE, totalRow, emptyText = 'Sin datos para este periodo.', noun = 'filas', tree = null, onSort = null }){
   const st = { rows:[], filter:() => true, sortKey, sortDir, page:1, open:new Set() };
   const table = document.getElementById(tableId);
   const pager = pagerId ? document.getElementById(pagerId) : null;
@@ -665,6 +688,7 @@ function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pag
       if(st.sortKey === k) st.sortDir = st.sortDir === 'asc' ? 'desc' : 'asc';
       else { st.sortKey = k; st.sortDir = typeof st.rows[0]?.[k] === 'string' ? 'asc' : 'desc'; }
       st.page = 1; render();
+      if(onSort) onSort(st.sortKey, st.sortDir);
     });
     if(pager){
       if(pages <= 1){ pager.innerHTML = list.length ? `${list.length} ${noun}` : ''; }
@@ -679,6 +703,8 @@ function createTable({ tableId, pagerId, columns, sortKey, sortDir = 'desc', pag
   return {
     setRows(rows){ st.rows = rows; st.page = 1; render(); },
     setFilter(fn){ st.filter = fn; st.page = 1; render(); },
+    setSort(key, dir = 'desc'){ st.sortKey = key; st.sortDir = dir; st.page = 1; render(); },
+    getSort(){ return { key:st.sortKey, dir:st.sortDir }; },
   };
 }
 
@@ -733,6 +759,7 @@ async function loadAll(range){
     google: getJSON(`/api/google-ads?${q}`),
     audiences: getJSON(`/api/meta-ads?view=audiences&${cur}`),
     ads: getJSON(`/api/meta-ads?view=ads&${cur}`),
+    keywords: getJSON(`/api/google-ads?view=keywords&${cur}`),
     ga4: getJSON(`/api/ga4?${cur}`),
     checkouts: getJSON(`/api/shopify?view=checkouts&${cur}`),
   };
@@ -1412,6 +1439,49 @@ function renderGoogle(S, range){
   tblGTipos.setRows([...byType.values()].map(t => ({ ...gDerive(t), share:div(t.spend, c.spend) })));
   tblGCampanas.setRows(camps);
 }
+// ---- Palabras clave
+const kwStatusChip = (v, r) => {
+  const cls = v === 'Activo' ? (r.parent_paused ? 'st-pause' : 'st-on') : v === 'Pausado' ? 'st-pause' : 'st-off';
+  return `<span class="chip ${cls}">${escapeHtml(v)}${r.parent_paused ? ' (campaña o grupo en pausa)' : ''}</span>`;
+};
+const pct2 = v => v == null || !isFinite(v) ? '—' : `${fmtDec.format(v * 100)}%`;
+const tblKw = createTable({ tableId:'tblKw', pagerId:'pgKw', noun:'palabras clave', sortKey:'spend',
+  onSort:(key) => { const sel = document.getElementById('kwSort'); if([...sel.options].some(o => o.value === key)) sel.value = key; },
+  columns:[
+    { key:'keyword', label:'Palabra clave', f:(v, r) => r.isTotal ? '' : `${escapeHtml(v)}<div class="kw-sub">${escapeHtml(r.match)} · ${escapeHtml(r.ad_group || '')} · ${escapeHtml(r.campaign || '')}</div>` },
+    { key:'status', label:'Estado', align:'left', f:(v, r) => r.isTotal ? '' : kwStatusChip(v, r) },
+    { key:'spend', label:'Costo', f:money2 },
+    { key:'conversions', label:'Conversiones', f:v => v == null ? '—' : fmtDec.format(v) },
+    { key:'cpa', label:'Costo por conversión', f:money2 },
+    { key:'conversions_value', label:'Valor de conversión', f:money },
+    { key:'cvr', label:'% de conversión', f:pct2 },
+    { key:'impressions', label:'Impresiones', f:int },
+    { key:'clicks', label:'Clics', f:int },
+    { key:'ctr', label:'CTR', f:pct2 },
+    { key:'cpc', label:'CPC prom.', f:money2 },
+  ],
+  totalRow:list => kwDerive({ ...list.reduce((a, r) => { ['spend','conversions','conversions_value','impressions','clicks'].forEach(k => a[k] += r[k] || 0); return a; }, { spend:0, conversions:0, conversions_value:0, impressions:0, clicks:0 }), keyword:undefined, status:undefined, isTotal:true }),
+  emptyText:'No hay palabras clave con actividad en este periodo.' });
+function kwDerive(r){ return { ...r, cpa:div(r.spend, r.conversions), cvr:div(r.conversions, r.clicks), ctr:div(r.clicks, r.impressions), cpc:div(r.spend, r.clicks) }; }
+function applyKwFilter(){
+  const q = normTxt(document.getElementById('fKw').value.trim()), st = document.getElementById('fKwStatus').value;
+  tblKw.setFilter(r => (!st || r.status === st) && (!q || normTxt(`${r.keyword} ${r.ad_group} ${r.campaign}`).includes(q)));
+}
+document.getElementById('fKw').addEventListener('input', applyKwFilter);
+document.getElementById('fKwStatus').addEventListener('change', applyKwFilter);
+document.getElementById('kwSort').addEventListener('change', e => tblKw.setSort(e.target.value, 'desc'));
+function renderKeywords(S){
+  if(!S.kwRows){
+    notice('kwNotice', `Google Ads no devolvió las palabras clave: ${escapeHtml(S.errors.keywords || '')}`); tblKw.setRows([]); return;
+  }
+  notice('kwNotice', '');
+  const rows = S.kwRows.map(kwDerive);
+  const by = st => rows.filter(r => r.status === st).length;
+  document.getElementById('kwSub').textContent = `${int(rows.length)} palabras clave con actividad en el periodo · ${int(by('Activo'))} activas · ${int(by('Pausado'))} pausadas · ${int(by('Quitado'))} quitadas.`;
+  tblKw.setRows(rows);
+  applyKwFilter();
+}
+
 document.getElementById('fGCampana').addEventListener('input', e => { const q = e.target.value.trim().toLowerCase(); tblGCampanas.setFilter(x => !q || x.campaign.toLowerCase().includes(q)); });
 
 /* ==========================================================================
@@ -1730,7 +1800,7 @@ async function refresh(){
   const d = await loadAll(range);
   if(seq !== loadSeq) return;   // llegó una respuesta vieja después de cambiar el rango
 
-  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ads:d.ads, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
+  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ads:d.ads, keywords:d.keywords, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
   STATE = {
     orders: d.shopify ? d.shopify.orders : null,
     geo: d.shopify ? d.shopify.geo : null,
@@ -1741,6 +1811,7 @@ async function refresh(){
     googleRows: d.google ? normGoogle(d.google.rows || []) : null,
     audRows: d.audiences ? d.audiences.rows : null,
     adsRows: d.ads ? d.ads.rows : null,
+    kwRows: d.keywords ? d.keywords.rows : null,
     adsThumbsError: d.ads ? d.ads.thumbsError : null,
     errors: d.errors,
   };
@@ -1757,6 +1828,7 @@ async function refresh(){
   renderMeta(STATE, range);
   renderCreativos(STATE, range);
   renderGoogle(STATE, range);
+  renderKeywords(STATE);
   renderAudiencias(STATE);
   renderProductos(STATE, range);
   document.getElementById('footerInfo').textContent = `Tiba Salud · actualizado ${new Date().toLocaleString('es-MX', { timeZone:TZ, dateStyle:'medium', timeStyle:'short' })}`;
@@ -1849,7 +1921,10 @@ function demoData(since, until, range){
     const lpv = Math.round(imp * (0.004 + rnd() * 0.01)), pur = Math.round(lpv * (0.03 + rnd() * 0.07));
     return { ad_id:String(i), ad, adset_id:`${cid}-${i % 2}`, adset:`${campaign} | Conjunto ${i % 2 ? 'Intereses' : 'Lookalike 2%'}`, campaign, campaign_id:cid, objective:'OUTCOME_SALES', link_clicks:Math.round(spend * (0.6 + rnd())), add_to_cart:Math.round(lpv * (0.08 + rnd() * 0.08)), add_to_cart_value:Math.round(lpv * (0.08 + rnd() * 0.08)) * (420 + rnd() * 300), checkouts:Math.round(lpv * (0.02 + rnd() * 0.03)), spend, reach, impressions:imp, frequency:freq, unique_ctr:0.008 + rnd() * 0.02, landing_page_views:lpv, purchases:pur, purchase_value:pur * (700 + rnd() * 700), thumbnail:i % 4 === 3 ? null : `data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><rect width='240' height='240' fill='${['#21362C','#6F1D46','#00744B','#B21E29'][i % 4]}'/><text x='120' y='130' font-family='sans-serif' font-size='22' fill='white' text-anchor='middle'>Ejemplo ${i + 1}</text></svg>`)}`, image:null, type:i % 3 ? 'PHOTO' : 'VIDEO' };
   });
-  return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
+  const kwList = [['tiba salud','Exacta','Activo',false],['tiba','Amplia','Activo',false],['suplementos tiba','Frase','Activo',false],['tiba suplementos naturales','Frase','Pausado',false],['kirei colágeno','Exacta','Activo',true],['scudo defensas','Frase','Quitado',false],['tibasalud.com','Exacta','Activo',false],['tiba kit quema y reduce','Amplia','Activo',false]];
+  const kwRows = kwList.map(([keyword, match, status, parent_paused], i) => { const imp = Math.round(40 + rnd() * 900), clicks = Math.round(imp * (0.08 + rnd() * 0.3)), conv = Math.round(clicks * (0.01 + rnd() * 0.06) * 10) / 10;
+    return { id:String(i), keyword, match, status, parent_paused, ad_group:i % 2 ? 'Marca' : 'Marca + producto', campaign:'.GADS - MHA - Search - Brand', spend:clicks * (8 + rnd() * 10), conversions:conv, conversions_value:conv * (900 + rnd() * 600), impressions:imp, clicks }; });
+  return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, keywords:{ rows:kwRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
 }
 
