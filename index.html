@@ -209,6 +209,18 @@
   .grid-fun{ display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; }
   .grid-fun h3{ font-size:.8rem; letter-spacing:.1em; text-transform:uppercase; color:var(--acero); margin:0 0 .6rem; }
   .fun-top .ab{ color:var(--baja); }
+  .ksplit{ font-size:.7rem; color:var(--texto-suave); margin-top:.35rem; line-height:1.35; }
+  .ns-sum{ font-size:.9rem; color:var(--texto); margin:0 0 1rem; }
+  .ns-sum b{ color:var(--marino); }
+  .ns-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(380px, 1fr)); gap:1rem; }
+  .ns-card{ border:1px solid var(--borde); border-radius:10px; padding:1rem 1.1rem; }
+  .ns-card h3{ margin:0; font-size:1rem; color:var(--marino); word-break:break-word; }
+  .ns-card .ns-obj{ font-size:.78rem; color:var(--texto-suave); margin:.15rem 0 .8rem; }
+  .ns-metrics{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:.8rem .9rem; margin:0; }
+  .ns-metrics dt{ font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; color:var(--texto-suave); line-height:1.25; }
+  .ns-metrics dd{ margin:.15rem 0 0; font-size:1rem; font-weight:700; color:var(--marino); font-variant-numeric:tabular-nums; }
+  .chip.ns{ background:#FDF3E2; border-color:#F2D9A8; color:var(--aviso); margin-left:.4rem; }
+  @media (max-width:640px){ .ns-grid{ grid-template-columns:minmax(0,1fr); } .ns-metrics{ grid-template-columns:repeat(2, minmax(0,1fr)); } }
   .pdot{ display:inline-block; width:.62rem; height:.62rem; border-radius:50%; margin-right:.5rem; vertical-align:.05rem; flex:none; }
   .empty{ font-size:.85rem; color:var(--texto-suave); padding:.5rem 0; }
 
@@ -270,6 +282,12 @@
       <div class="eyebrow">KPIs</div>
       <div class="sec-head"><h2 class="sec-title">Indicadores clave</h2><span class="sec-meta" id="kpiMeta"></span></div>
       <div class="kgrid" id="kpisResumen"></div>
+    </div>
+
+    <div class="sec">
+      <div class="eyebrow">Fuera del embudo de ventas</div>
+      <div class="sec-head"><h2 class="sec-title">Campañas de Amazon y distribuidores</h2><span class="sec-meta">Meta Ads · no suman a la inversión total, MER, ROAS ni CAC · activas desde el 12 nov 2026</span></div>
+      <div class="panel" id="nonSales"></div>
     </div>
 
     <div class="sec">
@@ -438,7 +456,7 @@
       </div>
       <div class="table-wrap"><table id="tblCampanas"></table></div>
       <div class="pager" id="pgCampanas"></div>
-      <p class="note">Compras y valor de compra son los que reporta Meta con su atribución. El ROAS de esta pestaña es el de la plataforma; el ROAS blended del Resumen usa ventas netas reales de Shopify.</p>
+      <p class="note">Compras y valor de compra son los que reporta Meta con su atribución. El ROAS de esta pestaña es el de la plataforma; el ROAS blended del Resumen usa ventas netas reales de Shopify. Los KPIs, el embudo y la tabla por objetivo de esta pestaña excluyen las campañas marcadas como "Fuera de ventas" (Amazon y distribuidores); la tabla de campañas sí las muestra, y su fila de total las incluye.</p>
     </div>
   </section>
 
@@ -578,6 +596,13 @@ const OBJECTIVES = {
 };
 
 const PAGE_SIZE = 15;
+
+// Campañas de Meta que NO son de ventas en la tienda (Amazon, awareness de distribuidores).
+// No suman a la inversión total, MER, ROAS ni CAC; se reportan aparte en el Resumen.
+// Se comparan por nombre exacto (sin importar mayúsculas). Iniciaron el 12 nov 2026.
+const NON_SALES_CAMPAIGNS = ['RO_MX_SAL_PRO_AMAZON', 'RO_MX_AWA_BRA_DISTRIBUIDORES'];
+const NON_SALES_SINCE = '2026-11-12';
+const isNonSales = name => NON_SALES_CAMPAIGNS.some(c => c.toLowerCase() === String(name || '').trim().toLowerCase());
 
 // Brandbook 2026: cada fórmula y complemento tiene su color ("Black" de su paleta).
 // Se usa como punto identificador junto al nombre del producto. El orden importa (lo más específico primero).
@@ -762,6 +787,7 @@ async function loadAll(range){
     google: getJSON(`/api/google-ads?${q}`),
     audiences: getJSON(`/api/meta-ads?view=audiences&${cur}`),
     ads: getJSON(`/api/meta-ads?view=ads&${cur}`),
+    campTotals: getJSON(`/api/meta-ads?view=campaign_totals&${cur}`),
     keywords: getJSON(`/api/google-ads?view=keywords&${cur}`),
     ga4: getJSON(`/api/ga4?${cur}`),
     checkouts: getJSON(`/api/shopify?view=checkouts&${cur}`),
@@ -800,6 +826,7 @@ function normMeta(rows){
     objective_raw:r.objective, objective:objectiveLabel(r.objective), label:campaignLabel(String(r.campaign_id), r.campaign),
     spend:+r.spend||0, impressions:+r.impressions||0, clicks:+r.link_clicks||0,
     add_to_cart:+r.add_to_cart||0, checkouts:+r.checkouts||0, purchases:+r.purchases||0, value:+r.purchase_value||0,
+    nonSales:isNonSales(r.campaign),
   }));
 }
 const CHANNEL_LABELS = { SEARCH:'Search', PERFORMANCE_MAX:'Performance Max', SHOPPING:'Shopping', DISPLAY:'Display', VIDEO:'YouTube', DEMAND_GEN:'Demand Gen', DISCOVERY:'Discovery', SMART:'Smart', LOCAL:'Local', MULTI_CHANNEL:'App' };
@@ -900,7 +927,7 @@ function renderResumen(S, range){
   const oc = S.orders ? inRange(S.orders, range) : null, op = S.orders ? inRange(S.orders, prev) : null;
   const sc = oc ? shopSummary(oc) : null, sp = op ? shopSummary(op) : null;
   const spendOf = (rows, r) => rows ? inRange(rows, r).reduce((a, x) => a + x.spend, 0) : 0;
-  const mC = spendOf(S.metaRows, range), mP = spendOf(S.metaRows, prev), gC = spendOf(S.googleRows, range), gP = spendOf(S.googleRows, prev);
+  const mC = spendOf(S.metaSalesRows, range), mP = spendOf(S.metaSalesRows, prev), gC = spendOf(S.googleRows, range), gP = spendOf(S.googleRows, prev);
   const spC = mC + gC, spP = mP + gP;
 
   const msgs = [];
@@ -910,9 +937,9 @@ function renderResumen(S, range){
   document.getElementById('kpiMeta').textContent = `${range.start} → ${range.end}`;
 
   // ---- KPIs (10)
-  const K = (label, c, p, fmt, opts = {}) => ({ label, value:fmt(c), delta:kDelta(c, p, fmt, opts.lower, opts.neutral), hero:opts.hero });
+  const K = (label, c, p, fmt, opts = {}) => ({ label, value:fmt(c), delta:kDelta(c, p, fmt, opts.lower, opts.neutral), hero:opts.hero, split:opts.split });
   const items = [
-    K('Gasto total (Meta + Google)', spC, spP, money, { neutral:true }),
+    K('Gasto total (Meta + Google)', spC, spP, money, { neutral:true, split:nonSalesNote(S, range) }),
     K('Ventas totales (Shopify)', sc?.total, sp?.total, money),
     K('Ventas netas', sc?.net, sp?.net, money),
     K('Clientes nuevos', sc?.newCustomers, sp?.newCustomers, int),
@@ -924,8 +951,9 @@ function renderResumen(S, range){
     K('Pedidos totales', sc?.orders, sp?.orders, int),
   ];
   document.getElementById('kpisResumen').innerHTML = items.map(k => `
-    <div class="kcell${k.hero ? ' hero' : ''}"><div class="klabel">${k.label}</div><div class="kvalue">${k.value}</div>${k.delta}</div>`).join('');
+    <div class="kcell${k.hero ? ' hero' : ''}"><div class="klabel">${k.label}</div><div class="kvalue">${k.value}</div>${k.delta}${k.split ? `<div class="ksplit">${k.split}</div>` : ''}</div>`).join('');
 
+  renderNonSales(S, range);
   renderSemanal(S, range, oc);
   renderMensual(S.monthly);
   renderCruce(S, range, sc, mC, gC);
@@ -933,6 +961,40 @@ function renderResumen(S, range){
   renderTopEstados(S, oc, op, range);
   renderTopProductos(oc, op, range);
   renderFunnelResumen(S, sc);
+}
+
+// ---- Campañas fuera del embudo de ventas (no suman a inversión, MER, ROAS ni CAC)
+function nonSalesSpend(S, range){ return S.metaRows ? inRange(S.metaRows.filter(r => r.nonSales), range).reduce((a, r) => a + r.spend, 0) : 0; }
+function nonSalesNote(S, range){ const v = nonSalesSpend(S, range); return v > 0 ? `Excluye ${money(v)} de campañas de Amazon y distribuidores` : ''; }
+function renderNonSales(S, range){
+  const el = document.getElementById('nonSales');
+  if(!S.metaRows){ el.innerHTML = '<p class="empty">Sin datos de Meta Ads.</p>'; return; }
+  // Totales del periodo por campaña (alcance y frecuencia reales). Si esa consulta falla, se arma con los datos diarios.
+  const daily = inRange(S.metaRows.filter(r => r.nonSales), range);
+  let list = S.nonSalesTotals;
+  if(!list){
+    const m = new Map();
+    daily.forEach(r => { const x = m.get(r.campaign_id) || { campaign:r.campaign, objective:r.objective_raw, spend:0, impressions:0, link_clicks:0, landing_page_views:null, reach:null, frequency:null }; x.spend += r.spend; x.impressions += r.impressions; x.link_clicks += r.clicks; m.set(r.campaign_id, x); });
+    list = [...m.values()];
+  }
+  list = list.filter(r => r.spend > 0 || r.impressions > 0);
+  if(!list.length){
+    el.innerHTML = `<p class="empty">Sin actividad en el periodo seleccionado.${range.end < NON_SALES_SINCE ? ' Estas campañas iniciaron el 12 nov 2026.' : ''}</p>`; return;
+  }
+  const total = list.reduce((a, r) => a + r.spend, 0);
+  const salesSpend = (S.metaSalesRows ? inRange(S.metaSalesRows, range).reduce((a, r) => a + r.spend, 0) : 0) + (S.googleRows ? inRange(S.googleRows, range).reduce((a, r) => a + r.spend, 0) : 0);
+  const M = (l, v) => `<div><dt>${l}</dt><dd>${v}</dd></div>`;
+  el.innerHTML = `<p class="ns-sum">Inversión en estas campañas: <b>${money(total)}</b>. No está incluida en el gasto total del periodo (<b>${money(salesSpend)}</b>), así que no afecta MER, ROAS ni CAC. Si se sumara, el gasto sería ${money(total + salesSpend)}.</p>
+    <div class="ns-grid">${list.sort((a, b) => b.spend - a.spend).map(r => `
+      <div class="ns-card">
+        <h3>${escapeHtml(r.campaign)}</h3>
+        <div class="ns-obj">${escapeHtml(objectiveLabel(r.objective))}</div>
+        <dl class="ns-metrics">
+          ${M('Inversión', money(r.spend))}${M('Alcance', r.reach == null ? '—' : int(r.reach))}${M('Impresiones', int(r.impressions))}${M('Frecuencia', r.frequency == null ? '—' : fmtDec.format(r.frequency))}${M('CPM', money2(div(r.spend * 1000, r.impressions)))}
+          ${M('Clics en el enlace', int(r.link_clicks))}${M('CTR', pct(div(r.link_clicks, r.impressions)))}${M('CPC', money2(div(r.spend, r.link_clicks)))}${M('Visitas a la página', r.landing_page_views == null ? '—' : int(r.landing_page_views))}${M('Costo por visita', r.landing_page_views ? money2(div(r.spend, r.landing_page_views)) : '—')}
+        </dl>
+      </div>`).join('')}</div>
+    ${S.nonSalesTotals ? '' : '<p class="note">Alcance, frecuencia y visitas no disponibles: la consulta de totales por campaña no respondió.</p>'}`;
 }
 
 // ---- Evolución semanal (lunes a domingo, recortada al periodo seleccionado)
@@ -948,7 +1010,7 @@ function renderSemanal(S, range, oc){
   }
   const byKey = Object.fromEntries(weeks.map(w => [w.key, w]));
   const inR = d => d >= range.start && d <= range.end;
-  [...(S.metaRows || []), ...(S.googleRows || [])].forEach(r => { if(inR(r.date)) byKey[weekStart(r.date)].spend += r.spend; });
+  [...(S.metaSalesRows || []), ...(S.googleRows || [])].forEach(r => { if(inR(r.date)) byKey[weekStart(r.date)].spend += r.spend; });
   (oc || []).forEach(o => {
     const w = byKey[weekStart(o.date)]; if(!w) return;
     w.orders++; w.value += o.net;
@@ -1014,7 +1076,7 @@ function renderMensual(M){
   if(!ok){ charts.mensual?.destroy(); return; }
 
   const spend = Object.fromEntries(months.map(m => [m, 0]));
-  [...(M.meta || []), ...(M.google || [])].forEach(r => { if(r.month in spend) spend[r.month] += +r.spend || 0; });
+  [...(M.meta || []).filter(r => !isNonSales(r.campaign)), ...(M.google || [])].forEach(r => { if(r.month in spend) spend[r.month] += +r.spend || 0; });
   const shop = Object.fromEntries((M.shopify || []).map(r => [r.month, r]));
   const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
   const font = { family:css('--font'), size:11 };
@@ -1042,7 +1104,7 @@ function renderCruce(S, range, sc, mC, gC){
   const net = sc?.net;
   const varPct = v => net ? `${v - net >= 0 ? '+' : '−'}${pct1(Math.abs(v - net) / net)}` : '—';
   const rows = [];
-  if(S.metaRows){ const m = metaSum(inRange(S.metaRows, range)); rows.push(['Meta Ads', money(mC), money(m.value), x2(m.roas), varPct(m.value)]); }
+  if(S.metaSalesRows){ const m = metaSum(inRange(S.metaSalesRows, range)); rows.push(['Meta Ads (campañas de ventas)', money(mC), money(m.value), x2(m.roas), varPct(m.value)]); }
   else rows.push(['Meta Ads', '—', '—', '—', 'Sin datos']);
   if(S.googleRows){
     const cur = inRange(S.googleRows, range), g = gSum(cur);
@@ -1141,6 +1203,7 @@ const tblObjetivos = createTable({ tableId:'tblObjetivos', columns:[
 const labelChip = v => `<span class="chip ${v === 'Retargeting' ? 'rtg' : v === 'Prospecting' ? 'pro' : ''}">${escapeHtml(v)}</span>`;
 const nameCell = (v, r) => {
   if(r.level === 1) return `<span class="lvl-tag">Conjunto</span>${escapeHtml(v)}`;
+  if(r.level === 0 && r.nonSales) return `${escapeHtml(v)}<span class="chip ns" title="No suma a la inversión total ni al ROAS del Resumen">Fuera de ventas</span>`;
   if(r.level === 2) return `${r.thumbnail ? `<img class="mini-thumb" src="${escapeHtml(r.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}<span class="lvl-tag">Anuncio</span>${escapeHtml(v)}`;
   return escapeHtml(v);
 };
@@ -1166,7 +1229,9 @@ function renderMeta(S, range){
     kpiCards('kpisMeta', []); document.getElementById('funnel').innerHTML = ''; tblObjetivos.setRows([]); tblCampanas.setRows([]); return;
   }
   notice('metaNotice', '');
-  const cur = inRange(S.metaRows, range), prev = inRange(S.metaRows, previousRange(range));
+  // KPIs, embudo y objetivos: solo campañas de ventas. La tabla de campañas muestra todas.
+  const cur = inRange(S.metaSalesRows, range), prev = inRange(S.metaSalesRows, previousRange(range));
+  const allCur = inRange(S.metaRows, range);
   const c = metaSum(cur), p = metaSum(prev);
   kpiCards('kpisMeta', [
     { label:'Inversión', value:money(c.spend), delta:deltaPct(c.spend, p.spend), neutral:true },
@@ -1188,10 +1253,10 @@ function renderMeta(S, range){
     return `<div class="step"><span class="name">${name}</span><div class="track"><div class="fill" style="width:${w}%"></div></div><span class="rate"><b>${int(v)}</b>${rate}</span></div>`;
   }).join('') + `<p class="note">El ancho de las barras usa escala de raíz cuadrada para que las últimas etapas se alcancen a ver. Conversión total de clic a compra: ${pct(div(c.purchases, c.clicks))}.</p>`;
 
-  // Campañas
+  // Campañas (todas, incluidas las que no son de ventas)
   const byCamp = new Map();
-  cur.forEach(r => {
-    if(!byCamp.has(r.campaign_id)) byCamp.set(r.campaign_id, { campaign_id:r.campaign_id, campaign:r.campaign, objective:r.objective, label:r.label, ...metaEmpty() });
+  allCur.forEach(r => {
+    if(!byCamp.has(r.campaign_id)) byCamp.set(r.campaign_id, { campaign_id:r.campaign_id, campaign:r.campaign, objective:r.objective, label:r.label, nonSales:r.nonSales, ...metaEmpty() });
     metaAdd(byCamp.get(r.campaign_id), r);
   });
   const camps = [...byCamp.values()].map(metaDerive).filter(x => x.spend > 0 || x.impressions > 0)
@@ -1215,7 +1280,7 @@ function renderMeta(S, range){
 
   // Por objetivo
   const byObj = new Map();
-  camps.forEach(x => { const o = byObj.get(x.objective) || { objective:x.objective, campaigns:0, ...metaEmpty() }; o.campaigns++; metaAdd(o, x); byObj.set(x.objective, o); });
+  camps.filter(x => !x.nonSales).forEach(x => { const o = byObj.get(x.objective) || { objective:x.objective, campaigns:0, ...metaEmpty() }; o.campaigns++; metaAdd(o, x); byObj.set(x.objective, o); });
   tblObjetivos.setRows([...byObj.values()].map(o => ({ ...metaDerive(o), share:div(o.spend, c.spend) })));
 
   // Filtros de la tabla de campañas
@@ -1830,7 +1895,7 @@ async function refresh(){
   const d = await loadAll(range);
   if(seq !== loadSeq) return;   // llegó una respuesta vieja después de cambiar el rango
 
-  window.DATA = { ...window.DATA, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ads:d.ads, keywords:d.keywords, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
+  window.DATA = { ...window.DATA, campTotals:d.campTotals, shopify:d.shopify, meta:d.meta, google:d.google, audiences:d.audiences, ads:d.ads, keywords:d.keywords, ga4:d.ga4, checkouts:d.checkouts, monthly:d.monthly, errors:d.errors };
   STATE = {
     orders: d.shopify ? d.shopify.orders : null,
     geo: d.shopify ? d.shopify.geo : null,
@@ -1838,6 +1903,7 @@ async function refresh(){
     checkouts: d.checkouts || null,
     monthly: MONTHLY_DATA,
     metaRows: d.meta ? normMeta(d.meta.rows || []) : null,
+    nonSalesTotals: d.campTotals ? (d.campTotals.rows || []).filter(r => isNonSales(r.campaign)) : null,
     googleRows: d.google ? normGoogle(d.google.rows || []) : null,
     audRows: d.audiences ? d.audiences.rows : null,
     adsRows: d.ads ? d.ads.rows : null,
@@ -1845,6 +1911,8 @@ async function refresh(){
     adsThumbsError: d.ads ? d.ads.thumbsError : null,
     errors: d.errors,
   };
+  // Solo campañas de ventas: lo que suma a inversión total, MER, ROAS y CAC
+  STATE.metaSalesRows = STATE.metaRows ? STATE.metaRows.filter(r => !r.nonSales) : null;
   window.RAW_ORDERS = STATE.orders || []; window.RAW_META_ROWS = STATE.metaRows || []; window.RAW_ADS = STATE.adsRows || [];
   window.RAW_GOOGLE_ROWS = STATE.googleRows || []; window.RAW_AUDIENCES = STATE.audRows || [];
   window.STATE = STATE;
@@ -1896,7 +1964,7 @@ function demoData(since, until, range){
   const metaCamps = [
     ['1','Kit Quema y Reduce | Conversiones','OUTCOME_SALES'],['2','Kirei - Belleza Oct','OUTCOME_SALES'],['3','RTG carrito abandonado','OUTCOME_SALES'],
     ['4','Scudo defensas','OUTCOME_SALES'],['5','Tráfico blog sueño','OUTCOME_TRAFFIC'],['6','Alcance marca','OUTCOME_AWARENESS'],
-    ['7','Retargeting visitantes 30d','OUTCOME_SALES'],['8','Video Pultsu','OUTCOME_ENGAGEMENT'],['9','Catálogo Advantage+','OUTCOME_SALES'],['10','Lead magnet guía','OUTCOME_LEADS'],
+    ['7','Retargeting visitantes 30d','OUTCOME_SALES'],['11','RO_MX_SAL_PRO_AMAZON','OUTCOME_SALES'],['12','RO_MX_AWA_BRA_DISTRIBUIDORES','OUTCOME_AWARENESS'],['8','Video Pultsu','OUTCOME_ENGAGEMENT'],['9','Catálogo Advantage+','OUTCOME_SALES'],['10','Lead magnet guía','OUTCOME_LEADS'],
   ];
   const products = [
     ['p1','Kirei','Fórmulas Funcionales',596],['p2','Pultsu','Fórmulas Funcionales',479],['p3','Scudo','Fórmulas Funcionales',479],['p4','Laila','Fórmulas Funcionales',479],
@@ -1955,7 +2023,10 @@ function demoData(since, until, range){
   const kwRows = kwList.map(([keyword, match, status, parent_paused], i) => { const imp = Math.round(40 + rnd() * 900), clicks = Math.round(imp * (0.08 + rnd() * 0.3)), conv = Math.round(clicks * (0.01 + rnd() * 0.06) * 10) / 10;
     if(i === 7) return { id:String(i), keyword, match, status, parent_paused, ad_group:'Marca', campaign:'[S] Producto específico', spend:0, conversions:0, conversions_value:0, impressions:0, clicks:0 };
     return { id:String(i), keyword, match, status, parent_paused, ad_group:i % 2 ? 'Marca' : 'Marca + producto', campaign:'.GADS - MHA - Search - Brand', spend:clicks * (8 + rnd() * 10), conversions:conv, conversions_value:conv * (900 + rnd() * 600), impressions:imp, clicks }; });
-  return { shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, keywords:{ rows:kwRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
+  const ns = metaRows.filter(r => isNonSales(r.campaign) && r.date >= range.start && r.date <= range.end);
+  const campTotals = { rows:['RO_MX_SAL_PRO_AMAZON','RO_MX_AWA_BRA_DISTRIBUIDORES'].map(c => { const l = ns.filter(r => r.campaign === c); const sp = l.reduce((a, r) => a + r.spend, 0), im = l.reduce((a, r) => a + r.impressions, 0), cl = l.reduce((a, r) => a + r.link_clicks, 0);
+    return { campaign:c, objective:c.includes('AWA') ? 'OUTCOME_AWARENESS' : 'OUTCOME_SALES', spend:sp, impressions:im, reach:Math.round(im / 2.1), frequency:2.1, link_clicks:cl, landing_page_views:Math.round(cl * 0.7) }; }) };
+  return { campTotals, shopify:{ orders, geo:true }, meta:{ rows:metaRows }, ads:{ rows:adsRows }, keywords:{ rows:kwRows }, google:{ rows:googleRows }, audiences:{ rows:audRows }, ga4, checkouts, monthly,
     status:{ shopify:'ok', meta:'ok', google:'ok', audiences:'ok', ga4:'ok' }, errors:{} };
 }
 
