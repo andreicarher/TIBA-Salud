@@ -2,6 +2,7 @@
 //   → filas diarias por campaña (con objective), sin agregar.
 // GET /api/meta-ads?view=monthly&since=...&until=...   → inversión por mes
 // GET /api/meta-ads?view=ads&since=...&until=...       → rendimiento por anuncio con miniatura
+// GET /api/meta-ads?view=campaign_totals&since=...&until=... → totales del rango por campaña (alcance y frecuencia reales)
 // GET /api/meta-ads?view=audiences&since=...&until=...
 //   → totales del rango por edad, género, dispositivo y plataforma.
 //
@@ -105,18 +106,45 @@ async function fetchAccount(accountId, since, until, token) {
   };
 }
 
-// Desglose mensual a nivel cuenta (para la gráfica Ene → hoy del Resumen).
-async function fetchMonthly(since, until, token) {
+// Totales del rango por campaña (sin segmentar por día), para tener alcance y frecuencia reales.
+async function fetchCampaignTotals(since, until, token) {
   const rows = [];
   for (const id of accountIds()) {
     const params = new URLSearchParams({
-      level: "account", time_increment: "monthly", time_range: JSON.stringify({ since, until }),
-      fields: "spend,actions,action_values", use_unified_attribution_setting: "true", limit: "100", access_token: token,
+      level: "campaign", time_range: JSON.stringify({ since, until }),
+      fields: "campaign_id,campaign_name,objective,spend,reach,impressions,frequency,cpm,inline_link_clicks,actions,action_values",
+      use_unified_attribution_setting: "true", limit: "500", access_token: token,
     });
     let url = `${BASE}/${id}/insights?${params}`;
     while (url) {
       const json = await metaGet(url);
-      for (const r of json.data || []) rows.push({ month: r.date_start.slice(0, 7), account_id: id, spend: num(r.spend), purchases: pickAction(r.actions, ACTION_PRIORITY.purchases), purchase_value: pickAction(r.action_values, ACTION_PRIORITY.purchases) });
+      for (const r of json.data || []) rows.push({
+        campaign_id: r.campaign_id, campaign: r.campaign_name, objective: r.objective, account_id: id,
+        spend: num(r.spend), reach: num(r.reach), impressions: num(r.impressions), frequency: num(r.frequency), cpm: num(r.cpm),
+        link_clicks: num(r.inline_link_clicks),
+        landing_page_views: pickAction(r.actions, ACTION_PRIORITY.landing_page_views),
+        purchases: pickAction(r.actions, ACTION_PRIORITY.purchases),
+        purchase_value: pickAction(r.action_values, ACTION_PRIORITY.purchases),
+      });
+      url = json.paging?.next || null;
+    }
+  }
+  return { source: "meta", view: "campaign_totals", since, until, rows, fetchedAt: new Date().toISOString() };
+}
+
+// Desglose mensual por campaña (para la gráfica Ene → hoy del Resumen). Va por campaña para que
+// el frontend pueda excluir campañas que no son de ventas.
+async function fetchMonthly(since, until, token) {
+  const rows = [];
+  for (const id of accountIds()) {
+    const params = new URLSearchParams({
+      level: "campaign", time_increment: "monthly", time_range: JSON.stringify({ since, until }),
+      fields: "campaign_id,campaign_name,spend,actions,action_values", use_unified_attribution_setting: "true", limit: "500", access_token: token,
+    });
+    let url = `${BASE}/${id}/insights?${params}`;
+    while (url) {
+      const json = await metaGet(url);
+      for (const r of json.data || []) rows.push({ month: r.date_start.slice(0, 7), account_id: id, campaign_id: r.campaign_id, campaign: r.campaign_name, spend: num(r.spend), purchases: pickAction(r.actions, ACTION_PRIORITY.purchases), purchase_value: pickAction(r.action_values, ACTION_PRIORITY.purchases) });
       url = json.paging?.next || null;
     }
   }
@@ -249,10 +277,14 @@ export default async function handler(req, res) {
     const token = process.env.META_ACCESS_TOKEN;
     if (!token) throw new Error("Falta META_ACCESS_TOKEN en las variables de entorno");
     const { since, until } = readRange(req.query);
-    const view = ["audiences", "monthly", "ads"].includes(req.query.view) ? req.query.view : "campaigns";
+    const view = ["audiences", "monthly", "ads", "campaign_totals"].includes(req.query.view) ? req.query.view : "campaigns";
     const key = `${view}_${since}_${until}`;
 
     let data = req.query.refresh === "1" ? null : cache.get(key);
+    if (!data && view === "campaign_totals") {
+      data = await fetchCampaignTotals(since, until, token);
+      cache.set(key, data);
+    }
     if (!data && view === "ads") {
       data = await fetchAds(since, until, token);
       cache.set(key, data);
